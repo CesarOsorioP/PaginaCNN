@@ -11,10 +11,7 @@ export default function Navbar() {
             <div className="flex justify-between h-16">
                 <div className="flex items-center">
                     <span className="material-symbols-outlined text-primary-600 text-3xl mr-2">radiology</span>
-                    <span className="font-bold text-xl text-slate-900 dark:text-white">MedScan AI</span>
-                </div>
-                <div className="hidden sm:flex items-center space-x-8">
-                    <a href="#how-it-works" className="text-slate-600 hover:text-primary-600 px-3 py-2 rounded-md text-sm font-medium dark:text-slate-300 dark:hover:text-white">Demo</a>
+                    <span className="font-bold text-xl text-slate-900 dark:text-white">NombrePagina</span>
                 </div>
                 <div className="flex items-center space-x-4">
                     <button onClick={toggleTheme} className="p-2 rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-colors">

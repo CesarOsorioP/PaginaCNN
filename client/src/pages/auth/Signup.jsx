@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function Signup() {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     navigate('/dashboard');
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -20,7 +25,7 @@ export default function Signup() {
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
             <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Crear Cuenta</h2>
-                <p className="text-slate-500 mt-2 dark:text-slate-400">Únete a MedScan AI para empezar</p>
+                <p className="text-slate-500 mt-2 dark:text-slate-400">Únete a NombrePagina para empezar</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
@@ -36,13 +41,28 @@ export default function Signup() {
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Correo Electrónico Profesional</label>
-                    <input type="email" required className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400" placeholder="doctor@hospital.com" />
+                    <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Correo Electrónico</label>
+                    <input type="email" required className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400" placeholder="email@example.com" />
                 </div>
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Contraseña</label>
-                    <input type="password" required className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400" placeholder="••••••••" />
+                    <div className="relative">
+                        <input 
+                            type={showPassword ? "text" : "password"} 
+                            required 
+                            className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400 pr-10" 
+                            placeholder="••••••••" 
+                        />
+                        <div 
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            onClick={togglePasswordVisibility}
+                        >
+                            <span className="material-symbols-outlined text-xl">
+                                {showPassword ? 'visibility_off' : 'visibility'}
+                            </span>
+                        </div>
+                    </div>
                     <p className="text-xs text-slate-500 mt-1 dark:text-slate-400">Mínimo 8 caracteres, una mayúscula y un número.</p>
                 </div>
 
@@ -68,4 +88,3 @@ export default function Signup() {
     </div>
   );
 }
-

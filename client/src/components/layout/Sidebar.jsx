@@ -29,10 +29,10 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       
       <aside className={finalClasses}>
         <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-          <div className="flex items-center text-primary-700 dark:text-primary-400">
+          <Link to="/" className="flex items-center text-primary-700 dark:text-primary-400 hover:opacity-80 transition-opacity">
             <span className="material-symbols-outlined text-3xl mr-2">radiology</span>
-            <span className="font-bold text-xl">MedScan AI</span>
-          </div>
+            <span className="font-bold text-xl">NombrePagina</span>
+          </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <Link to="/dashboard" className={linkClasses('/dashboard')} onClick={() => setMobileOpen && setMobileOpen(false)}>
@@ -41,7 +41,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           <Link to="/upload" className={linkClasses('/upload')} onClick={() => setMobileOpen && setMobileOpen(false)}>
             <span className="material-symbols-outlined mr-3">upload_file</span> Nuevo Análisis
           </Link>
-          <Link to="#" className={linkClasses('/history')} onClick={() => setMobileOpen && setMobileOpen(false)}>
+          <Link to="/history" className={linkClasses('/history')} onClick={() => setMobileOpen && setMobileOpen(false)}>
             <span className="material-symbols-outlined mr-3">history</span> Historial
           </Link>
           <Link to="/profile" className={linkClasses('/profile')} onClick={() => setMobileOpen && setMobileOpen(false)}>
@@ -62,4 +62,3 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
     </>
   );
 }
-

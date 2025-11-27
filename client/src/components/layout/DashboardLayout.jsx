@@ -13,7 +13,7 @@ export default function DashboardLayout() {
       <div className="md:hidden fixed w-full bg-white z-20 shadow-sm p-4 flex justify-between items-center dark:bg-slate-800">
          <div className="flex items-center text-primary-700 dark:text-primary-400">
             <span className="material-symbols-outlined text-2xl mr-2">radiology</span>
-            <span className="font-bold text-lg">MedScan AI</span>
+            <span className="font-bold text-lg">NombrePagina</span>
         </div>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-slate-600 dark:text-slate-300">
           <span className="material-symbols-outlined">menu</span>

@@ -1,15 +1,20 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 
 export default function Login() {
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     // Mock auth logic
     navigate('/dashboard');
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   return (
@@ -44,9 +49,19 @@ export default function Login() {
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <span className="material-symbols-outlined text-slate-400 text-xl">lock</span>
                         </div>
-                        <input type="password" required className="block w-full pl-10 pr-10 rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400" placeholder="••••••••" />
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-300">
-                            <span className="material-symbols-outlined text-xl">visibility</span>
+                        <input 
+                            type={showPassword ? "text" : "password"} 
+                            required 
+                            className="block w-full pl-10 pr-10 rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 sm:text-sm dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:placeholder:text-slate-400" 
+                            placeholder="••••••••" 
+                        />
+                        <div 
+                            className="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+                            onClick={togglePasswordVisibility}
+                        >
+                            <span className="material-symbols-outlined text-xl">
+                                {showPassword ? 'visibility_off' : 'visibility'}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -74,4 +89,3 @@ export default function Login() {
     </div>
   );
 }
-

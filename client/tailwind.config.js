@@ -25,6 +25,21 @@ module.exports = {
       },
       fontFamily: { 
         sans: ['Manrope', 'sans-serif'] 
+      },
+      animation: {
+        // Más suave: duración 1s y curva cubic-bezier más natural
+        'fade-in-up': 'fadeInUp 1s cubic-bezier(0.2, 0.8, 0.2, 1) both',
+        'scroll': 'scroll 30s linear infinite', // Un poco más lento para leer mejor
+      },
+      keyframes: {
+        fadeInUp: {
+          '0%': { opacity: '0', transform: 'translateY(30px)' }, // Mayor desplazamiento inicial
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
+        scroll: {
+          '0%': { transform: 'translateX(0)' },
+          '100%': { transform: 'translateX(-50%)' },
+        }
       }
     },
   },
@@ -33,4 +48,3 @@ module.exports = {
     require('@tailwindcss/typography'),
   ],
 }
-

@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
+import { HistoryProvider } from './context/HistoryContext';
 
 // Layouts
 import DashboardLayout from './components/layout/DashboardLayout';
@@ -17,6 +18,7 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 
 // Dashboard Pages
 import Dashboard from './pages/dashboard/Dashboard';
+import History from './pages/dashboard/History';
 import Profile from './pages/dashboard/Profile';
 import Upload from './pages/dashboard/Upload';
 import Report from './pages/dashboard/Report';
@@ -25,35 +27,38 @@ import UploadError from './pages/dashboard/UploadError';
 
 function App() {
   return (
-    <ThemeProvider>
-      <Router>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/" element={<Landing />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
+    <HistoryProvider>
+      <ThemeProvider>
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/" element={<Landing />} />
+            <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
 
-          {/* Auth Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+            {/* Auth Routes */}
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
 
-          {/* Dashboard Routes (Protected in real app) */}
-          <Route element={<DashboardLayout />}>
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/profile" element={<Profile />} />
-            <Route path="/upload" element={<Upload />} />
-            <Route path="/report/:id" element={<Report />} />
-            <Route path="/report" element={<Navigate to="/report/1" replace />} />
-          </Route>
-          
-           {/* Standalone Dashboard Pages (Full screen but part of flow) */}
-           <Route path="/upload-success" element={<UploadSuccess />} />
-           <Route path="/upload-error" element={<UploadError />} />
+            {/* Dashboard Routes (Protected in real app) */}
+            <Route element={<DashboardLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/profile" element={<Profile />} />
+              <Route path="/upload" element={<Upload />} />
+              <Route path="/report/:id" element={<Report />} />
+              <Route path="/report" element={<Navigate to="/report/1" replace />} />
+            </Route>
+            
+             {/* Standalone Dashboard Pages (Full screen but part of flow) */}
+             <Route path="/upload-success" element={<UploadSuccess />} />
+             <Route path="/upload-error" element={<UploadError />} />
 
-        </Routes>
-      </Router>
-    </ThemeProvider>
+          </Routes>
+        </Router>
+      </ThemeProvider>
+    </HistoryProvider>
   );
 }
 

@@ -8,7 +8,7 @@ export default function Footer() {
             <div>
                 <div className="flex items-center text-white mb-4">
                     <span className="material-symbols-outlined text-2xl mr-2">radiology</span>
-                    <span className="font-bold text-lg">MedScan AI</span>
+                    <span className="font-bold text-lg">NombrePagina</span>
                 </div>
                 <p className="text-sm text-slate-400">Tecnología avanzada para el cuidado de la salud.</p>
             </div>
@@ -16,7 +16,6 @@ export default function Footer() {
                 <h4 className="text-white font-semibold mb-4">Producto</h4>
                 <ul className="space-y-2 text-sm">
                     <li><Link to="#" className="hover:text-white">Características</Link></li>
-                    <li><Link to="#" className="hover:text-white">Precios</Link></li>
                     <li><Link to="#" className="hover:text-white">API</Link></li>
                 </ul>
             </div>
@@ -30,13 +29,13 @@ export default function Footer() {
             <div>
                 <h4 className="text-white font-semibold mb-4">Contacto</h4>
                 <ul className="space-y-2 text-sm">
-                    <li>soporte@medscan.ai</li>
+                    <li>ContactoEjemplo@gmail.com</li>
                     <li>+1 234 567 890</li>
                 </ul>
             </div>
         </div>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
-            &copy; 2024 MedScan AI. Todos los derechos reservados.
+            &copy; 2025. Todos los derechos reservados.
         </div>
     </footer>
   );

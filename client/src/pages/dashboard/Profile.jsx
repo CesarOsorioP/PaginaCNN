@@ -25,7 +25,7 @@ export default function Profile() {
 
                 <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1 dark:text-slate-300">Correo Electrónico</label>
-                    <input type="email" defaultValue="doctor@hospital.com" className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
+                    <input type="email" defaultValue="email@example.com" className="w-full rounded-lg border-slate-300 focus:border-primary-600 focus:ring-primary-600 dark:bg-slate-700 dark:border-slate-600 dark:text-white" />
                 </div>
 
                 <div className="pt-4 border-t border-slate-100 dark:border-slate-700">
