@@ -71,7 +71,7 @@ export default function History() {
     }
 
     return (
-        <div className="">
+        <div className="max-w-full">
             <NavigationButtons />
             {/* Header */}
             <div className="mb-8">

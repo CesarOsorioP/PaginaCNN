@@ -112,19 +112,19 @@ export default function Dashboard() {
     }
 
     return (
-        <div className="text-slate-900 dark:text-white transition-colors duration-300">
+        <div className="text-slate-900 dark:text-white transition-colors duration-300 max-w-full">
             <NavigationButtons />
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
-                <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                <div className="min-w-0">
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-1 break-words">
                         Bienvenido, {user?.firstName || user?.username || 'User'}
                     </h1>
                     <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">Resumen de tus análisis recientes.</p>
                 </div>
                 <Link
                     to="/upload"
-                    className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors justify-center sm:justify-start shadow-lg shadow-cyan-500/20"
+                    className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors justify-center sm:justify-start shadow-lg shadow-cyan-500/20 flex-shrink-0"
                 >
                     <span className="text-xl">+</span>
                     <span>Nueva Radiografía</span>
