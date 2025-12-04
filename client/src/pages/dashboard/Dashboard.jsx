@@ -27,6 +27,28 @@ export default function Dashboard() {
 
     // Calculate metrics
     const totalStudies = studies.length;
+    
+    // Calculate growth (this month vs last month)
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+    const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+
+    const studiesThisMonth = studies.filter(study => {
+        const date = new Date(study.createdAt || study.analysisDate);
+        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    }).length;
+
+    const studiesLastMonth = studies.filter(study => {
+        const date = new Date(study.createdAt || study.analysisDate);
+        return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+    }).length;
+
+    const growth = studiesLastMonth === 0 
+        ? (studiesThisMonth > 0 ? 100 : 0) 
+        : ((studiesThisMonth - studiesLastMonth) / studiesLastMonth) * 100;
+
     const anomaliesDetected = studies.filter((study) => {
         const topResult = study.results?.reduce((max, current) =>
             current.probability > max.probability ? current : max,
@@ -35,6 +57,28 @@ export default function Dashboard() {
         const conditionLower = topResult.condition?.toLowerCase() || '';
         return !conditionLower.includes('normal') && !conditionLower.includes('no finding');
     }).length;
+
+    // Calculate average processing time
+    const studiesWithTime = studies.filter(s => s.processingTime);
+    const avgTimeMs = studiesWithTime.length > 0
+        ? studiesWithTime.reduce((acc, s) => acc + s.processingTime, 0) / studiesWithTime.length
+        : 0;
+    const avgTimeSec = (avgTimeMs / 1000).toFixed(1);
+
+    // Calculate average processing time for last month
+    const studiesWithTimeLastMonth = studies.filter(s => {
+        if (!s.processingTime) return false;
+        const date = new Date(s.createdAt || s.analysisDate);
+        return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
+    });
+    const avgTimeLastMonthMs = studiesWithTimeLastMonth.length > 0
+        ? studiesWithTimeLastMonth.reduce((acc, s) => acc + s.processingTime, 0) / studiesWithTimeLastMonth.length
+        : 0;
+    
+    const timeDiff = avgTimeLastMonthMs > 0 
+        ? (avgTimeMs - avgTimeLastMonthMs) / 1000 
+        : 0;
+    const timeDiffLabel = timeDiff > 0 ? `+${timeDiff.toFixed(1)}s` : `${timeDiff.toFixed(1)}s`;
 
     const getResultBadge = (condition) => {
         const conditionLower = condition?.toLowerCase() || '';
@@ -97,9 +141,9 @@ export default function Dashboard() {
                         </div>
                     </div>
                     <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">{totalStudies}</div>
-                    <div className="text-green-600 dark:text-green-400 text-sm flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">trending_up</span>
-                        <span>+12% este mes</span>
+                    <div className={`text-sm flex items-center gap-1 ${growth >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                        <span className="material-symbols-outlined text-xs">{growth >= 0 ? 'trending_up' : 'trending_down'}</span>
+                        <span>{growth > 0 ? '+' : ''}{growth.toFixed(0)}% este mes</span>
                     </div>
                 </div>
 
@@ -129,10 +173,10 @@ export default function Dashboard() {
                             <span className="material-symbols-outlined text-green-600 dark:text-green-400">schedule</span>
                         </div>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">18s</div>
-                    <div className="text-green-600 dark:text-green-400 text-sm flex items-center gap-1">
-                        <span className="material-symbols-outlined text-xs">trending_down</span>
-                        <span>-2s vs mes anterior</span>
+                    <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">{avgTimeSec}s</div>
+                    <div className={`text-sm flex items-center gap-1 ${timeDiff <= 0 ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400'}`}>
+                        <span className="material-symbols-outlined text-xs">{timeDiff <= 0 ? 'trending_down' : 'trending_up'}</span>
+                        <span>{timeDiff !== 0 ? `${timeDiffLabel} vs mes anterior` : 'Sin datos previos'}</span>
                     </div>
                 </div>
             </div>

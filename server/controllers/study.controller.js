@@ -45,6 +45,8 @@ exports.analyzeImage = async (req, res) => {
         const modelType = req.body.modelType || 'efficientnet';
         console.log(`🤖 Usando modelo: ${modelType}`);
 
+        const startTime = Date.now();
+
         // Analizar imagen con modelo ONNX
         try {
             predictionResult = await onnxAnalyzer.predict(imagePath, modelType);
@@ -105,6 +107,8 @@ exports.analyzeImage = async (req, res) => {
             });
         }
 
+        const processingTime = Date.now() - startTime;
+
         // Devolver respuesta exitosa
         return res.json({
             imageUrl,
@@ -114,6 +118,7 @@ exports.analyzeImage = async (req, res) => {
             confidence: predictionResult.confidence,
             heatmap: heatmapData,
             modelType: modelType,
+            processingTime,
             analysisDate: new Date()
         });
 
@@ -139,7 +144,7 @@ exports.analyzeImage = async (req, res) => {
 // @access  Private
 exports.saveStudy = async (req, res) => {
     try {
-        const { imageUrl, results, predictedClass, predictedClassEn, confidence, heatmap, modelType, summary } = req.body;
+        const { imageUrl, results, predictedClass, predictedClassEn, confidence, heatmap, modelType, processingTime, summary } = req.body;
 
         const study = await Study.create({
             user: req.user._id,
@@ -150,6 +155,7 @@ exports.saveStudy = async (req, res) => {
             confidence,
             heatmap,
             modelType: modelType || 'efficientnet',
+            processingTime,
             summary
         });
 

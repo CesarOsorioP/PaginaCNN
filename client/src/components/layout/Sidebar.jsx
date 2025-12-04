@@ -45,10 +45,13 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             >
                 {/* Logo */}
                 <div className="p-6 border-b border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+                    <Link 
+                        to="/" 
+                        className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors cursor-pointer"
+                    >
                         <span className="material-symbols-outlined text-2xl">medical_services</span>
                         <span className="font-bold text-lg">NombrePagina</span>
-                    </div>
+                    </Link>
                 </div>
 
                 {/* Menu Items */}

@@ -67,20 +67,20 @@ export default function Profile() {
     };
 
     return (
-        <div className="text-white">
+        <div className="">
             <NavigationButtons />
-            <h1 className="text-2xl sm:text-3xl font-bold mb-8">Configuración de Perfil</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-8 text-slate-900 dark:text-white">Configuración de Perfil</h1>
 
-            <div className="bg-slate-800 rounded-lg border border-slate-700 p-6 sm:p-8">
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 sm:p-8 shadow-sm dark:shadow-none">
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Personal Information */}
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">Información Personal</h2>
-                        <p className="text-slate-400 text-sm mb-6">Actualiza tus datos y preferencias.</p>
+                        <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">Información Personal</h2>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">Actualiza tus datos y preferencias.</p>
 
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="firstName" className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="firstName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Nombre
                                 </label>
                                 <input
@@ -90,12 +90,12 @@ export default function Profile() {
                                     value={formData.firstName}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="lastName" className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="lastName" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Apellido
                                 </label>
                                 <input
@@ -105,12 +105,12 @@ export default function Profile() {
                                     value={formData.lastName}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-slate-300 mb-2">
+                                <label htmlFor="email" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                     Correo Electrónico
                                 </label>
                                 <input
@@ -120,7 +120,7 @@ export default function Profile() {
                                     value={formData.email}
                                     onChange={handleChange}
                                     required
-                                    className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                    className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                                 />
                             </div>
                         </div>
@@ -128,9 +128,9 @@ export default function Profile() {
 
                     {/* Security */}
                     <div>
-                        <h2 className="text-lg font-semibold mb-4">Seguridad</h2>
+                        <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">Seguridad</h2>
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-slate-300 mb-2">
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
                                 Nueva Contraseña
                             </label>
                             <input
@@ -140,7 +140,7 @@ export default function Profile() {
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder="Dejar en blanco para mantener la actual"
-                                className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                                className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-cyan-500"
                             />
                         </div>
                     </div>
@@ -150,8 +150,8 @@ export default function Profile() {
                         <div
                             className={`p-4 rounded-lg ${
                                 message.type === 'success'
-                                    ? 'bg-green-900/30 text-green-300 border border-green-800'
-                                    : 'bg-red-900/30 text-red-300 border border-red-800'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800'
+                                    : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300 border border-red-200 dark:border-red-800'
                             }`}
                         >
                             {message.text}

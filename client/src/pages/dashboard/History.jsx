@@ -36,15 +36,15 @@ export default function History() {
         const conditionLower = condition?.toLowerCase() || '';
 
         if (conditionLower.includes('normal') || conditionLower.includes('no finding')) {
-            return <span className="px-3 py-1 bg-green-900 text-green-300 rounded-full text-xs font-medium">Normal</span>;
+            return <span className="px-3 py-1 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300 rounded-full text-xs font-medium">Normal</span>;
         } else if (conditionLower.includes('pneumonia') || conditionLower.includes('neumonía')) {
-            return <span className="px-3 py-1 bg-red-900 text-red-300 rounded-full text-xs font-medium">Neumonía</span>;
+            return <span className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full text-xs font-medium">Neumonía</span>;
         } else if (conditionLower.includes('nódulo') || conditionLower.includes('nodule')) {
-            return <span className="px-3 py-1 bg-orange-900 text-orange-300 rounded-full text-xs font-medium">Nódulo</span>;
+            return <span className="px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-300 rounded-full text-xs font-medium">Nódulo</span>;
         } else if (conditionLower.includes('edema')) {
-            return <span className="px-3 py-1 bg-red-900 text-red-300 rounded-full text-xs font-medium">Edema pulmonar</span>;
+            return <span className="px-3 py-1 bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300 rounded-full text-xs font-medium">Edema pulmonar</span>;
         } else {
-            return <span className="px-3 py-1 bg-slate-700 text-slate-300 rounded-full text-xs font-medium">{condition}</span>;
+            return <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-300 rounded-full text-xs font-medium">{condition}</span>;
         }
     };
 
@@ -71,12 +71,12 @@ export default function History() {
     }
 
     return (
-        <div className="text-white">
+        <div className="">
             <NavigationButtons />
             {/* Header */}
             <div className="mb-8">
-                <h1 className="text-2xl sm:text-3xl font-bold mb-2">Historial de Análisis</h1>
-                <p className="text-slate-400 text-sm sm:text-base">Registro completo de radiografías procesadas.</p>
+                <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-slate-900 dark:text-white">Historial de Análisis</h1>
+                <p className="text-slate-500 dark:text-slate-400 text-sm sm:text-base">Registro completo de radiografías procesadas.</p>
             </div>
 
             {/* Search Bar */}
@@ -90,17 +90,17 @@ export default function History() {
                         placeholder="Buscar por ID o resultado..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                        className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 shadow-sm dark:shadow-none"
                     />
                 </div>
             </div>
 
             {/* Table */}
-            <div className="bg-slate-800 rounded-lg border border-slate-700 overflow-hidden">
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none">
                 <div className="overflow-x-auto">
                     <table className="w-full">
-                        <thead className="bg-slate-700/50">
-                            <tr className="text-left text-slate-400 text-xs sm:text-sm">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50">
+                            <tr className="text-left text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
                                 <th className="px-4 sm:px-6 py-3">ID Paciente</th>
                                 <th className="px-4 sm:px-6 py-3">Fecha</th>
                                 <th className="px-4 sm:px-6 py-3">Hora</th>
@@ -110,10 +110,10 @@ export default function History() {
                                 <th className="px-4 sm:px-6 py-3 text-right">Acción</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-700">
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {filteredStudies.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-400">
+                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                                         No se encontraron estudios
                                     </td>
                                 </tr>
@@ -136,23 +136,23 @@ export default function History() {
                                     });
 
                                     return (
-                                        <tr key={study._id} className="text-xs sm:text-sm hover:bg-slate-700/30 transition-colors">
-                                            <td className="px-4 sm:px-6 py-4 font-medium">
+                                        <tr key={study._id} className="text-xs sm:text-sm hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                            <td className="px-4 sm:px-6 py-4 font-medium text-slate-900 dark:text-white">
                                                 #{study._id.slice(-6).toUpperCase()}
                                             </td>
-                                            <td className="px-4 sm:px-6 py-4 text-slate-400">{dateStr}</td>
-                                            <td className="px-4 sm:px-6 py-4 text-slate-400">{timeStr}</td>
-                                            <td className="px-4 sm:px-6 py-4 text-slate-300 text-xs sm:text-sm">
+                                            <td className="px-4 sm:px-6 py-4 text-slate-500 dark:text-slate-400">{dateStr}</td>
+                                            <td className="px-4 sm:px-6 py-4 text-slate-500 dark:text-slate-400">{timeStr}</td>
+                                            <td className="px-4 sm:px-6 py-4 text-slate-700 dark:text-slate-300 text-xs sm:text-sm">
                                                 {getModelLabel(study.modelType)}
                                             </td>
                                             <td className="px-4 sm:px-6 py-4">{getResultBadge(topResult.condition)}</td>
-                                            <td className="px-4 sm:px-6 py-4 text-slate-400">
+                                            <td className="px-4 sm:px-6 py-4 text-slate-500 dark:text-slate-400">
                                                 {(topResult.probability * 100).toFixed(1)}%
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 text-right">
                                                 <Link
                                                     to={`/report/${study._id}`}
-                                                    className="inline-flex items-center gap-1 text-cyan-400 hover:text-cyan-300"
+                                                    className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300"
                                                 >
                                                     <span className="material-symbols-outlined text-sm">visibility</span>
                                                     Ver
@@ -168,20 +168,20 @@ export default function History() {
 
                 {/* Pagination Summary */}
                 {filteredStudies.length > 0 && (
-                    <div className="px-4 sm:px-6 py-4 border-t border-slate-700 flex justify-between items-center">
-                        <div className="text-sm text-slate-400">
+                    <div className="px-4 sm:px-6 py-4 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                        <div className="text-sm text-slate-500 dark:text-slate-400">
                             Mostrando 1 - {filteredStudies.length} de {filteredStudies.length} resultados
                         </div>
                         <div className="flex gap-2">
                             <button
                                 disabled
-                                className="p-2 text-slate-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <span className="material-symbols-outlined">chevron_left</span>
                             </button>
                             <button
                                 disabled
-                                className="p-2 text-slate-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <span className="material-symbols-outlined">chevron_right</span>
                             </button>

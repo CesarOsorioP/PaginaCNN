@@ -35,6 +35,9 @@ const studySchema = new mongoose.Schema({
         type: String,
         default: 'efficientnet' // Tipo de modelo usado para el análisis
     },
+    processingTime: {
+        type: Number // Tiempo de análisis en milisegundos
+    },
     summary: {
         type: String
     },
