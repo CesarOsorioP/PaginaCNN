@@ -6,24 +6,27 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
-      
+
       {/* Mobile Header */}
-      <div className="md:hidden fixed w-full bg-white z-20 shadow-sm p-4 flex justify-between items-center dark:bg-slate-800">
-         <div className="flex items-center text-primary-700 dark:text-primary-400">
-            <span className="material-symbols-outlined text-2xl mr-2">radiology</span>
-            <span className="font-bold text-lg">MedScan AI</span>
+      <div className="lg:hidden fixed top-0 left-0 right-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between z-30">
+        <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400">
+          <span className="material-symbols-outlined text-xl">medical_services</span>
+          <span className="font-bold">NombrePagina</span>
         </div>
-        <button onClick={() => setMobileOpen(!mobileOpen)} className="text-slate-600 dark:text-slate-300">
+        <button
+          onClick={() => setMobileOpen(!mobileOpen)}
+          className="text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
+        >
           <span className="material-symbols-outlined">menu</span>
         </button>
       </div>
 
-      <main className="flex-1 md:ml-64 p-4 md:p-8 pt-20 md:pt-8 w-full transition-all duration-300">
+      {/* Main Content */}
+      <main className="flex-1 lg:ml-52 p-6 lg:p-8 pt-20 lg:pt-8 text-slate-900 dark:text-white">
         <Outlet />
       </main>
     </div>
   );
 }
-

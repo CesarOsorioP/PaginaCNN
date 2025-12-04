@@ -1,96 +1,198 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
+import NavigationButtons from '../../components/NavigationButtons';
+import HelperTooltip from '../../components/HelperTooltip';
 
 export default function Dashboard() {
-  return (
-    <div>
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-            <div>
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Bienvenido, Dr. Pérez</h1>
-                <p className="text-slate-500 dark:text-slate-400">Resumen de tus análisis recientes.</p>
-            </div>
-            <Link to="/upload" className="bg-primary-600 hover:bg-primary-700 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors">
-                <span className="material-symbols-outlined mr-2 text-sm">add</span> Nueva Radiografía
-            </Link>
-        </div>
+    const { user } = useAuth();
+    const [studies, setStudies] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-slate-500 font-medium text-sm dark:text-slate-400">Estudios Totales</h3>
-                    <span className="p-2 bg-blue-50 text-blue-600 rounded-lg dark:bg-slate-700 dark:text-blue-400"><span className="material-symbols-outlined">folder_shared</span></span>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white">1,248</p>
-                <p className="text-sm text-green-600 mt-1 flex items-center dark:text-green-400"><span className="material-symbols-outlined text-sm mr-1">trending_up</span> +12% este mes</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-slate-500 font-medium text-sm dark:text-slate-400">Anomalías Detectadas</h3>
-                    <span className="p-2 bg-red-50 text-red-600 rounded-lg dark:bg-slate-700 dark:text-red-400"><span className="material-symbols-outlined">warning</span></span>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white">142</p>
-                <p className="text-sm text-slate-400 mt-1">11.3% del total</p>
-            </div>
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 dark:bg-slate-800 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-slate-500 font-medium text-sm dark:text-slate-400">Tiempo Promedio</h3>
-                    <span className="p-2 bg-green-50 text-green-600 rounded-lg dark:bg-slate-700 dark:text-green-400"><span className="material-symbols-outlined">timer</span></span>
-                </div>
-                <p className="text-3xl font-bold text-slate-900 dark:text-white">18s</p>
-                <p className="text-sm text-green-600 mt-1 flex items-center dark:text-green-400"><span className="material-symbols-outlined text-sm mr-1">arrow_downward</span> -2s vs mes anterior</p>
-            </div>
-        </div>
+    useEffect(() => {
+        const fetchStudies = async () => {
+            try {
+                const { data } = await api.get('/studies');
+                setStudies(data);
+            } catch (error) {
+                console.error('Error fetching studies:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-        {/* Recent Studies Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden dark:bg-slate-800 dark:border-slate-700">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center dark:border-slate-700">
-                <h3 className="font-bold text-slate-900 dark:text-white">Estudios Recientes</h3>
-                <Link to="#" className="text-sm text-primary-600 hover:text-primary-700 font-medium dark:text-primary-400">Ver todos</Link>
+        fetchStudies();
+    }, []);
+
+    // Calculate metrics
+    const totalStudies = studies.length;
+    const anomaliesDetected = studies.filter((study) => {
+        const topResult = study.results?.reduce((max, current) =>
+            current.probability > max.probability ? current : max,
+            study.results[0]
+        ) || { condition: 'Normal', probability: 0 };
+        const conditionLower = topResult.condition?.toLowerCase() || '';
+        return !conditionLower.includes('normal') && !conditionLower.includes('no finding');
+    }).length;
+
+    const getResultBadge = (condition) => {
+        const conditionLower = condition?.toLowerCase() || '';
+
+        if (conditionLower.includes('normal') || conditionLower.includes('no finding')) {
+            return <span className="px-3 py-1 bg-green-900 text-green-300 rounded-md text-xs font-medium">Normal</span>;
+        } else if (conditionLower.includes('pneumonia') || conditionLower.includes('neumonía')) {
+            return <span className="px-3 py-1 bg-red-900 text-red-300 rounded-md text-xs font-medium">Neumonía</span>;
+        } else if (conditionLower.includes('nódulo') || conditionLower.includes('nodule')) {
+            return <span className="px-3 py-1 bg-yellow-900 text-yellow-300 rounded-md text-xs font-medium">Nódulo</span>;
+        } else {
+            return <span className="px-3 py-1 bg-slate-700 text-slate-300 rounded-md text-xs font-medium">{condition}</span>;
+        }
+    };
+
+    const getModelLabel = (modelType) => {
+        if (!modelType) return 'EfficientNet-B4';
+        const map = {
+            efficientnet: 'EfficientNet-B4',
+            densenet121: 'DenseNet121'
+        };
+        return map[modelType] || modelType;
+    };
+
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-screen dark:bg-slate-900 bg-slate-50">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
             </div>
-            <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 text-slate-500 font-medium dark:bg-slate-700 dark:text-slate-300">
-                        <tr>
-                            <th className="px-6 py-3">ID Paciente</th>
-                            <th className="px-6 py-3">Fecha</th>
-                            <th className="px-6 py-3">Tipo</th>
-                            <th className="px-6 py-3">Resultado IA</th>
-                            <th className="px-6 py-3">Confianza</th>
-                            <th className="px-6 py-3 text-right">Acción</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                        <tr className="hover:bg-slate-50 transition-colors dark:hover:bg-slate-700">
-                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">#PT-4829</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">20 Nov 2025</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">Tórax AP</td>
-                            <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">Neumonía</span></td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">98.2%</td>
-                            <td className="px-6 py-4 text-right"><Link to="/report/1" className="text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300">Ver Reporte</Link></td>
-                        </tr>
-                        <tr className="hover:bg-slate-50 transition-colors dark:hover:bg-slate-700">
-                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">#PT-4828</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">20 Nov 2025</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">Tórax AP</td>
-                            <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">Normal</span></td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">99.5%</td>
-                            <td className="px-6 py-4 text-right"><Link to="/report/2" className="text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300">Ver Reporte</Link></td>
-                        </tr>
-                         <tr className="hover:bg-slate-50 transition-colors dark:hover:bg-slate-700">
-                            <td className="px-6 py-4 font-medium text-slate-900 dark:text-white">#PT-4827</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">19 Nov 2025</td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">Tórax Lateral</td>
-                            <td className="px-6 py-4"><span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">Nódulo</span></td>
-                            <td className="px-6 py-4 text-slate-500 dark:text-slate-400">85.4%</td>
-                            <td className="px-6 py-4 text-right"><Link to="/report/3" className="text-primary-600 hover:text-primary-800 font-medium dark:text-primary-400 dark:hover:text-primary-300">Ver Reporte</Link></td>
-                        </tr>
-                    </tbody>
-                </table>
+        );
+    }
+
+    return (
+        <div className="text-slate-900 dark:text-white transition-colors duration-300">
+            <NavigationButtons />
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
+                <div>
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-1">
+                        Bienvenido, {user?.firstName || user?.username || 'User'}
+                    </h1>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm sm:text-base">Resumen de tus análisis recientes.</p>
+                </div>
+                <Link
+                    to="/upload"
+                    className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors justify-center sm:justify-start shadow-lg shadow-cyan-500/20"
+                >
+                    <span className="text-xl">+</span>
+                    <span>Nueva Radiografía</span>
+                </Link>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-8">
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                        <span className="text-slate-500 dark:text-slate-400 text-sm">Estudios Totales</span>
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                            <span className="material-symbols-outlined text-blue-600 dark:text-blue-400">folder_open</span>
+                        </div>
+                    </div>
+                    <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">{totalStudies}</div>
+                    <div className="text-green-600 dark:text-green-400 text-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">trending_up</span>
+                        <span>+12% este mes</span>
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-slate-500 dark:text-slate-400 text-sm">Anomalías Detectadas</span>
+                            <HelperTooltip text="Cantidad de estudios que presentaron algún hallazgo patológico (no normal)." />
+                        </div>
+                        <div className="p-2 bg-red-100 dark:bg-red-900 rounded-lg">
+                            <span className="material-symbols-outlined text-red-600 dark:text-red-400">warning</span>
+                        </div>
+                    </div>
+                    <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">{anomaliesDetected}</div>
+                    <div className="text-slate-500 dark:text-slate-400 text-sm">
+                        {totalStudies > 0 ? ((anomaliesDetected / totalStudies) * 100).toFixed(1) : 0}% del total
+                    </div>
+                </div>
+
+                <div className="bg-white dark:bg-slate-800 rounded-lg p-6 border border-slate-200 dark:border-slate-700 shadow-sm dark:shadow-none transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-slate-500 dark:text-slate-400 text-sm">Tiempo Promedio</span>
+                            <HelperTooltip text="Tiempo medio que toma el modelo en procesar y retornar un diagnóstico." />
+                        </div>
+                        <div className="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
+                            <span className="material-symbols-outlined text-green-600 dark:text-green-400">schedule</span>
+                        </div>
+                    </div>
+                    <div className="text-3xl sm:text-4xl font-bold mb-2 text-slate-900 dark:text-white">18s</div>
+                    <div className="text-green-600 dark:text-green-400 text-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">trending_down</span>
+                        <span>-2s vs mes anterior</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Recent Studies Table */}
+            <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm dark:shadow-none transition-all">
+                <div className="px-4 sm:px-6 py-4 border-b border-slate-200 dark:border-slate-700 flex justify-between items-center">
+                    <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">Estudios Recientes</h2>
+                    <Link to="/history" className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300 text-xs sm:text-sm">
+                        Ver todos →
+                    </Link>
+                </div>
+
+                <div className="overflow-x-auto">
+                    <table className="w-full">
+                        <thead className="bg-slate-50 dark:bg-slate-700/50">
+                            <tr className="text-left text-slate-500 dark:text-slate-400 text-xs sm:text-sm">
+                                <th className="px-4 sm:px-6 py-3">ID Paciente</th>
+                                <th className="px-4 sm:px-6 py-3">Fecha</th>
+                                <th className="px-4 sm:px-6 py-3">Resultado IA</th>
+                                <th className="px-4 sm:px-6 py-3">Confianza</th>
+                                <th className="px-4 sm:px-6 py-3 text-right">Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
+                            {studies.slice(0, 3).map((study) => {
+                                const topResult = study.results?.reduce((max, current) =>
+                                    current.probability > max.probability ? current : max,
+                                    study.results[0]
+                                ) || { condition: 'Pendiente', probability: 0 };
+
+                                return (
+                                    <tr key={study._id} className="text-xs sm:text-sm hover:bg-slate-50 dark:hover:bg-slate-700/30 transition-colors">
+                                        <td className="px-4 sm:px-6 py-4 font-medium text-slate-900 dark:text-white">
+                                            #{study._id.slice(-6).toUpperCase()}
+                                            <p className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-500 mt-1">
+                                                {getModelLabel(study.modelType)}
+                                            </p>
+                                        </td>
+                                        <td className="px-4 sm:px-6 py-4 text-slate-500 dark:text-slate-400">
+                                            {new Date(study.createdAt).toLocaleDateString('es-ES', {
+                                                day: 'numeric',
+                                                month: 'short',
+                                                year: 'numeric'
+                                            })}
+                                        </td>
+                                        <td className="px-4 sm:px-6 py-4">{getResultBadge(topResult.condition)}</td>
+                                        <td className="px-4 sm:px-6 py-4 text-slate-500 dark:text-slate-400">{(topResult.probability * 100).toFixed(1)}%</td>
+                                        <td className="px-4 sm:px-6 py-4 text-right">
+                                            <Link to={`/report/${study._id}`} className="text-cyan-600 hover:text-cyan-700 dark:text-cyan-400 dark:hover:text-cyan-300">
+                                                Ver Reporte
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
-  );
+    );
 }
-
