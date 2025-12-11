@@ -19,7 +19,7 @@ const DEMO_CASES = [
         age: 42,
         image: '/assets/demo/tuberculosis.png',
         model: 'EfficientNet-B4',
-        analysisTime: '2.1s',
+        analysisTime: '6.4s',
         summary: 'Infiltrados apicales bilaterales consistentes con tuberculosis activa.',
         confidence: 0.94,
         results: [
@@ -49,7 +49,7 @@ const DEMO_CASES = [
         age: 65,
         image: '/assets/demo/mass.png',
         model: 'DenseNet121',
-        analysisTime: '3.4s',
+        analysisTime: '6.9s',
         summary: 'Masa de bordes irregulares en campo pulmonar derecho. Alta sospecha de malignidad.',
         confidence: 0.89,
         results: [
@@ -78,8 +78,8 @@ const DEMO_CASES = [
         patient: 'Luis M.',
         age: 38,
         image: '/assets/demo/covidd.png',
-        model: 'CovidNet-Custom',
-        analysisTime: '1.9s',
+        model: 'EfficientNet-B4',
+        analysisTime: '6.7s',
         summary: 'Opacidades en vidrio deslustrado periféricas. Patrón típico de neumonía viral (COVID-19).',
         confidence: 0.92,
         results: [
@@ -271,19 +271,21 @@ export default function Demo() {
                                             className="w-full h-full object-cover min-h-[320px]"
                                         />
                                         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/90 dark:to-slate-950/90 pointer-events-none"></div>
-                                        <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
-                                            <div>
-                                                <p className="text-sm text-white/80">Modelo seleccionado</p>
-                                                <p className="text-xl font-semibold text-white">{activeCase.model}</p>
+                                        {analysisComplete && (
+                                            <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-sm text-white/80">Modelo seleccionado</p>
+                                                    <p className="text-xl font-semibold text-white">{activeCase.model}</p>
+                                                </div>
+                                                <div className="flex flex-col items-end text-xs text-white/80">
+                                                    <span>Tiempo total</span>
+                                                    <span className="text-cyan-300 font-semibold flex items-center gap-1">
+                                                        <span className="material-symbols-outlined text-base">schedule</span>
+                                                        {activeCase.analysisTime}
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col items-end text-xs text-white/80">
-                                                <span>Tiempo total</span>
-                                                <span className="text-cyan-300 font-semibold flex items-center gap-1">
-                                                    <span className="material-symbols-outlined text-base">schedule</span>
-                                                    {activeCase.analysisTime}
-                                                </span>
-                                            </div>
-                                        </div>
+                                        )}
                                     </div>
                                     <div className="p-6 space-y-4 bg-white dark:bg-slate-900">
                                         <div>
@@ -332,27 +334,39 @@ export default function Demo() {
                                         <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-300">list_alt</span>
                                         <h4 className="text-lg font-semibold text-slate-900 dark:text-white">Bitácora en vivo</h4>
                                     </div>
-                                    <ol className="space-y-3 text-sm text-slate-600 dark:text-slate-300 list-decimal list-inside">
-                                        {activeCase.timeline.map((item, idx) => (
-                                            <li key={`${activeCase.id}-timeline-${idx}`} className="leading-relaxed">
-                                                {item}
-                                            </li>
-                                        ))}
-                                    </ol>
+                                    {analysisComplete ? (
+                                        <ol className="space-y-3 text-sm text-slate-600 dark:text-slate-300 list-decimal list-inside">
+                                            {activeCase.timeline.map((item, idx) => (
+                                                <li key={`${activeCase.id}-timeline-${idx}`} className="leading-relaxed">
+                                                    {item}
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    ) : (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                                            Ejecuta la demo para ver el resultado completo.
+                                        </p>
+                                    )}
                                 </div>
                                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm dark:shadow-none">
                                     <div className="flex items-center gap-2 mb-4">
                                         <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-300">assignment_turned_in</span>
                                         <h4 className="text-lg font-semibold text-slate-900 dark:text-white">Recomendaciones sugeridas</h4>
                                     </div>
-                                    <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                                        {activeCase.recommendations.map((rec, idx) => (
-                                            <li key={`${activeCase.id}-rec-${idx}`} className="flex items-start gap-3">
-                                                <span className="material-symbols-outlined text-base text-cyan-600 dark:text-cyan-300">check_circle</span>
-                                                {rec}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    {analysisComplete ? (
+                                        <ul className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                                            {activeCase.recommendations.map((rec, idx) => (
+                                                <li key={`${activeCase.id}-rec-${idx}`} className="flex items-start gap-3">
+                                                    <span className="material-symbols-outlined text-base text-cyan-600 dark:text-cyan-300">check_circle</span>
+                                                    {rec}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-sm text-slate-500 dark:text-slate-400 italic">
+                                            Ejecuta la demo para ver el resultado completo.
+                                        </p>
+                                    )}
                                 </div>
                             </div>
                         </div>
