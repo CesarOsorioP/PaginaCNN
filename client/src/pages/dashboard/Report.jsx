@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api/axios';
 import NavigationButtons from '../../components/NavigationButtons';
 import HelperTooltip from '../../components/HelperTooltip';
+import { useTheme } from '../../context/ThemeContext';
 
 const MODEL_METADATA = {
     efficientnet: {
@@ -31,6 +32,7 @@ const getModelMeta = (modelType) => {
 
 export default function Report() {
     const { id } = useParams();
+    const { isDark } = useTheme();
     const [study, setStudy] = useState(null);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('overlay'); // 'original', 'heatmap', 'overlay', 'contour'
@@ -172,41 +174,41 @@ export default function Report() {
     const getResultColor = (condition) => {
         const conditionLower = condition?.toLowerCase() || '';
         if (conditionLower.includes('normal')) {
-            return 'text-green-400';
+            return 'text-green-600 dark:text-green-400';
         } else if (conditionLower.includes('neumonía') || conditionLower.includes('edema') || conditionLower.includes('covid-19') || conditionLower.includes('tuberculosis')) {
-            return 'text-red-400';
+            return 'text-red-600 dark:text-red-400';
         } else {
-            return 'text-orange-400';
+            return 'text-orange-600 dark:text-orange-400';
         }
     };
 
     const getBarColor = (condition, isPredicted) => {
         if (isPredicted) {
-            return 'bg-cyan-500';
+            return 'bg-cyan-500 dark:bg-cyan-500';
         }
         const conditionLower = condition?.toLowerCase() || '';
         if (conditionLower.includes('normal')) {
-            return 'bg-green-600';
+            return 'bg-green-500 dark:bg-green-600';
         } else if (conditionLower.includes('neumonía') || conditionLower.includes('edema') || conditionLower.includes('covid-19') || conditionLower.includes('tuberculosis')) {
-            return 'bg-red-600';
+            return 'bg-red-500 dark:bg-red-600';
         } else {
-            return 'bg-orange-600';
+            return 'bg-orange-500 dark:bg-orange-600';
         }
     };
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+            <div className="flex justify-center items-center h-screen bg-white dark:bg-slate-900">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-500 dark:border-cyan-400"></div>
             </div>
         );
     }
 
     if (!study) {
         return (
-            <div className="text-white text-center py-12">
-                <p className="text-slate-400">Estudio no encontrado</p>
-                <Link to="/dashboard" className="text-cyan-400 hover:text-cyan-300 mt-4 inline-block">
+            <div className="text-slate-900 dark:text-white text-center py-12 bg-white dark:bg-slate-900 min-h-screen">
+                <p className="text-slate-500 dark:text-slate-400">Estudio no encontrado</p>
+                <Link to="/dashboard" className="text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 mt-4 inline-block">
                     Volver al Dashboard
                 </Link>
             </div>
@@ -220,22 +222,22 @@ export default function Report() {
     const top3Results = study.results?.slice(0, 3) || [];
 
     return (
-        <div className="text-white">
+        <div className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 min-h-screen">
             <NavigationButtons />
             {/* Breadcrumb */}
-            <div className="flex items-center text-sm text-slate-400 mb-6">
-                <Link to="/dashboard" className="hover:text-cyan-400">Dashboard</Link>
+            <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-6">
+                <Link to="/dashboard" className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">Dashboard</Link>
                 <span className="mx-2">/</span>
-                <span className="text-white">Reporte #{id.slice(-6).toUpperCase()}</span>
+                <span className="text-slate-900 dark:text-white font-medium">Reporte #{id.slice(-6).toUpperCase()}</span>
             </div>
 
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4 mb-8">
                 <div>
-                    <h1 className="text-2xl sm:text-3xl font-bold mb-2">Reporte de Análisis IA</h1>
-                    <p className="text-slate-400 text-sm">Inteligencia Artificial Explicable - Visualización de Atención</p>
+                    <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-slate-900 dark:text-white">Reporte de Análisis IA</h1>
+                    <p className="text-slate-600 dark:text-slate-400 text-sm">Inteligencia Artificial Explicable - Visualización de Atención</p>
                 </div>
-                <button className="bg-cyan-500 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                <button className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md">
                     <span className="material-symbols-outlined">download</span>
                     Descargar PDF
                 </button>
@@ -246,15 +248,15 @@ export default function Report() {
                 {/* Column 1: Image Views */}
                 <div className="lg:col-span-2 space-y-6">
                     {/* View Mode Selector */}
-                    <div className="bg-slate-800 rounded-lg border border-slate-700 p-4">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
-                                <h2 className="text-lg font-semibold">Visualización de Rayos X</h2>
+                                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Visualización de Rayos X</h2>
                                 <HelperTooltip text="Alterna entre la imagen original, el mapa de calor y la superposición para entender por qué la IA tomó su decisión." position="right" />
                             </div>
                             {hasAnomaly && (
-                                <div className="flex items-center gap-2 text-red-400">
-                                    <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse"></span>
+                                <div className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                                    <span className="w-2 h-2 bg-red-600 dark:bg-red-400 rounded-full animate-pulse"></span>
                                     <span className="text-sm font-medium">Anomalía Detectada</span>
                                 </div>
                             )}
@@ -268,8 +270,8 @@ export default function Report() {
                                     onClick={() => setViewMode(mode)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                                         viewMode === mode
-                                            ? 'bg-cyan-500 text-white'
-                                            : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                            ? 'bg-cyan-600 dark:bg-cyan-500 text-white'
+                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                     }`}
                                 >
                                     {mode === 'original' && 'Original'}
@@ -281,7 +283,7 @@ export default function Report() {
                         </div>
 
                         {/* Image Display */}
-                        <div className="relative bg-black rounded-lg overflow-hidden" style={{ minHeight: '400px' }}>
+                        <div className="relative bg-slate-100 dark:bg-black rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700" style={{ minHeight: '400px' }}>
                             {viewMode === 'original' && study.imageUrl && (
                                 <img
                                     src={getImageUrl(study.imageUrl)}
@@ -364,14 +366,14 @@ export default function Report() {
                                     />
                                     {hasAnomaly && (
                                         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <div className="w-32 h-32 border-4 border-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></div>
+                                            <div className="w-32 h-32 border-4 border-red-600 dark:border-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></div>
                                         </div>
                                     )}
                                 </div>
                             )}
 
                             {!study.imageUrl && (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-500">
+                                <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
                                     <span className="material-symbols-outlined text-6xl mb-4">image</span>
                                     <p>Imagen de Radiografía</p>
                                 </div>
@@ -379,7 +381,7 @@ export default function Report() {
                         </div>
 
                         {/* View Label */}
-                        <div className="mt-2 text-center text-sm text-slate-400">
+                        <div className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
                             {viewMode === 'original' && '(A) Radiografía Original'}
                             {viewMode === 'heatmap' && '(B) Mapa de Atención (Heatmap)'}
                             {viewMode === 'overlay' && `(C) Superposición - ${diagnosisInfo.condition} (${(diagnosisInfo.probability * 100).toFixed(1)}%)`}
@@ -388,16 +390,16 @@ export default function Report() {
                     </div>
 
                     {/* Predictions Chart */}
-                    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                        <h2 className="text-lg font-semibold mb-4">(D) Probabilidades de Diagnóstico</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">(D) Probabilidades de Diagnóstico</h2>
                         <div className="space-y-3">
                             {study.results?.map((result, index) => (
                                 <div key={index} className="space-y-1">
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="font-medium">{result.condition}</span>
-                                        <span className="text-slate-400">{(result.probability * 100).toFixed(1)}%</span>
+                                        <span className="font-medium text-slate-900 dark:text-white">{result.condition}</span>
+                                        <span className="text-slate-600 dark:text-slate-400">{(result.probability * 100).toFixed(1)}%</span>
                                     </div>
-                                    <div className="w-full bg-slate-700 rounded-full h-3 overflow-hidden">
+                                    <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
                                         <div
                                             className={`h-full transition-all duration-500 ${getBarColor(result.condition, index === 0)}`}
                                             style={{ width: `${result.probability * 100}%` }}
@@ -412,8 +414,8 @@ export default function Report() {
                 {/* Column 2: Diagnosis and Stats */}
                 <div className="space-y-6">
                     {/* Main Diagnosis */}
-                    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-slate-900 dark:text-white">
                             <span className={`material-symbols-outlined ${getResultColor(diagnosisInfo.condition)}`}>
                                 {hasAnomaly ? 'warning' : 'check_circle'}
                             </span>
@@ -424,69 +426,69 @@ export default function Report() {
                                 <h3 className={`text-xl font-bold ${getResultColor(diagnosisInfo.condition)}`}>
                                     {diagnosisInfo.condition}
                                 </h3>
-                                <p className="text-slate-400 text-sm mt-1">{diagnosisInfo.location}</p>
+                                <p className="text-slate-600 dark:text-slate-400 text-sm mt-1">{diagnosisInfo.location}</p>
                             </div>
-                            <div className="pt-3 border-t border-slate-700">
-                                <div className="flex items-center gap-2 text-sm text-slate-300 mb-2">
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
+                                <div className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300 mb-2">
                                     <span>Confianza IA</span>
                                     <HelperTooltip text="Probabilidad calculada por la red neuronal para el diagnóstico principal. Se expresa como porcentaje." />
                                 </div>
-                                <p className="text-2xl font-bold text-cyan-400">
+                                <p className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">
                                     {(diagnosisInfo.probability * 100).toFixed(1)}%
                                 </p>
                             </div>
-                            <p className="text-sm text-slate-300 leading-relaxed">{diagnosisInfo.description}</p>
+                            <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{diagnosisInfo.description}</p>
                         </div>
                     </div>
 
                     {/* Statistics */}
-                    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                        <h2 className="text-lg font-semibold mb-4">ESTADÍSTICAS</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">ESTADÍSTICAS</h2>
                         <div className="space-y-3 text-sm">
                             <div className="flex justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-400">Modelo:</span>
+                                    <span className="text-slate-600 dark:text-slate-400">Modelo:</span>
                                     <HelperTooltip text="Arquitectura de red neuronal utilizada (e.g., EfficientNet-B4). Cada modelo tiene fortalezas distintas en velocidad o precisión." />
                                 </div>
-                                <span className="text-white font-medium">{modelMeta.label}</span>
+                                <span className="text-slate-900 dark:text-white font-medium">{modelMeta.label}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Predicción:</span>
-                                <span className="text-white font-medium">{diagnosisInfo.condition}</span>
+                                <span className="text-slate-600 dark:text-slate-400">Predicción:</span>
+                                <span className="text-slate-900 dark:text-white font-medium">{diagnosisInfo.condition}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Confianza:</span>
-                                <span className="text-cyan-400 font-medium">{(diagnosisInfo.probability * 100).toFixed(1)}%</span>
+                                <span className="text-slate-600 dark:text-slate-400">Confianza:</span>
+                                <span className="text-cyan-600 dark:text-cyan-400 font-medium">{(diagnosisInfo.probability * 100).toFixed(1)}%</span>
                             </div>
                             <div className="flex justify-between">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-slate-400">Rendimiento:</span>
+                                    <span className="text-slate-600 dark:text-slate-400">Rendimiento:</span>
                                     <HelperTooltip text="Tiempo promedio que toma el modelo en procesar una imagen en el hardware actual." />
                                 </div>
-                                <span className="text-white font-medium">{modelMeta.throughput}</span>
+                                <span className="text-slate-900 dark:text-white font-medium">{modelMeta.throughput}</span>
                             </div>
                             <div className="flex justify-between">
-                                <span className="text-slate-400">Enfoque:</span>
-                                <span className="text-white font-medium">{modelMeta.focus}</span>
+                                <span className="text-slate-600 dark:text-slate-400">Enfoque:</span>
+                                <span className="text-slate-900 dark:text-white font-medium">{modelMeta.focus}</span>
                             </div>
-                            <div className="pt-3 border-t border-slate-700">
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700">
                                 <div className="flex items-center gap-2 mb-2">
-                                    <p className="text-slate-400">Top 3 Diagnósticos:</p>
+                                    <p className="text-slate-600 dark:text-slate-400">Top 3 Diagnósticos:</p>
                                     <HelperTooltip text="Las tres condiciones con mayor probabilidad según el análisis del modelo." />
                                 </div>
                                 <ul className="space-y-1">
                                     {top3Results.map((result, index) => (
                                         <li key={index} className="flex justify-between text-xs">
-                                            <span className="text-slate-300">{index + 1}. {result.condition}</span>
-                                            <span className="text-slate-400">{(result.probability * 100).toFixed(1)}%</span>
+                                            <span className="text-slate-700 dark:text-slate-300">{index + 1}. {result.condition}</span>
+                                            <span className="text-slate-600 dark:text-slate-400">{(result.probability * 100).toFixed(1)}%</span>
                                         </li>
                                     ))}
                                 </ul>
                             </div>
-                            <div className="pt-3 border-t border-slate-700 text-xs text-slate-400">
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
                                 <p>{modelMeta.description}</p>
                             </div>
-                            <div className="pt-3 border-t border-slate-700 text-xs text-slate-400">
+                            <div className="pt-3 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400">
                                 <div className="flex items-center gap-2 mb-1">
                                     <p>Leyenda del Heatmap:</p>
                                     <HelperTooltip text="Indica qué colores corresponden a zonas de alta o baja atención por parte de la IA." position="top" />
@@ -498,15 +500,15 @@ export default function Report() {
                     </div>
 
                     {/* Recommendations */}
-                    <div className="bg-slate-800 rounded-lg border border-slate-700 p-6">
-                        <h2 className="text-lg font-semibold mb-4">RECOMENDACIONES</h2>
+                    <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 shadow-sm">
+                        <h2 className="text-lg font-semibold mb-4 text-slate-900 dark:text-white">RECOMENDACIONES</h2>
                         <ul className="space-y-3">
                             {recommendations.map((rec, index) => (
                                 <li key={index} className="flex items-start gap-3">
-                                    <span className="material-symbols-outlined text-cyan-400 text-lg mt-0.5 flex-shrink-0">
+                                    <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-400 text-lg mt-0.5 flex-shrink-0">
                                         check_circle
                                     </span>
-                                    <span className="text-sm text-slate-300">{rec}</span>
+                                    <span className="text-sm text-slate-700 dark:text-slate-300">{rec}</span>
                                 </li>
                             ))}
                         </ul>
