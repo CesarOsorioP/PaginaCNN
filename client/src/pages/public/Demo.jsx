@@ -13,92 +13,93 @@ const ANALYSIS_STEPS = [
 
 const DEMO_CASES = [
     {
-        id: 'normal',
-        label: 'Seguimiento postoperatorio',
-        patient: 'Luisa M.',
-        age: 34,
-        image: 'https://images.unsplash.com/photo-1580281780460-82d7d6f26a19?auto=format&fit=crop&w=900&q=80',
+        id: 'tuberculosis',
+        label: 'Caso 1: Tuberculosis',
+        patient: 'Juan P.',
+        age: 42,
+        image: '/assets/demo/tuberculosis.png',
         model: 'EfficientNet-B4',
-        analysisTime: '1.8s',
-        summary: 'Radiografía dentro de parámetros normales. Sin opacidades focales.',
-        confidence: 0.87,
+        analysisTime: '2.1s',
+        summary: 'Infiltrados apicales bilaterales consistentes con tuberculosis activa.',
+        confidence: 0.94,
         results: [
-            { condition: 'Normal', probability: 0.87 },
-            { condition: 'Neumonía', probability: 0.07 },
-            { condition: 'Nódulo', probability: 0.03 },
-            { condition: 'Edema', probability: 0.02 },
-            { condition: 'Tuberculosis', probability: 0.01 }
+            { condition: 'Tuberculosis', probability: 0.94 },
+            { condition: 'Neumonía', probability: 0.04 },
+            { condition: 'Nódulo', probability: 0.01 },
+            { condition: 'Normal', probability: 0.01 },
+            { condition: 'Masa', probability: 0.00 }
         ],
         recommendations: [
-            'Continuar seguimiento clínico habitual.',
-            'No se detectan hallazgos que requieran intervención.'
+            'Iniciar aislamiento respiratorio preventivo.',
+            'Confirmación microbiológica (baciloscopia/PCR).',
+            'Notificación epidemiológica inmediata.'
         ],
         timeline: [
-            'Imagen DICOM (2.3MB) verificada y anonimizada.',
-            'Preprocesamiento completado en 320ms.',
-            'EfficientNet-B4 ejecutado en CPU (1.2s).',
-            'Heatmap generado y normalizado.',
-            'Resumen clínico listo para descarga.'
+            'Imagen de alta resolución cargada.',
+            'Normalización y mejora de contraste.',
+            'Detección de patrones cavitarios.',
+            'Segmentación de lóbulos superiores.',
+            'Generación de alerta epidemiológica.'
         ]
     },
     {
-        id: 'pneumonia',
-        label: 'Consulta urgente respiratoria',
-        patient: 'Carlos R.',
-        age: 58,
-        image: 'https://images.unsplash.com/photo-1580281657521-6c7980c541f8?auto=format&fit=crop&w=900&q=80',
+        id: 'mass',
+        label: 'Caso 2: Masa Pulmonar',
+        patient: 'Ana G.',
+        age: 65,
+        image: '/assets/demo/mass.png',
         model: 'DenseNet121',
-        analysisTime: '3.6s',
-        summary: 'Opacidad alveolar en lóbulo inferior derecho compatible con neumonía.',
-        confidence: 0.79,
+        analysisTime: '3.4s',
+        summary: 'Masa de bordes irregulares en campo pulmonar derecho. Alta sospecha de malignidad.',
+        confidence: 0.89,
         results: [
-            { condition: 'Neumonía', probability: 0.79 },
-            { condition: 'Normal', probability: 0.11 },
-            { condition: 'Edema', probability: 0.06 },
+            { condition: 'Masa', probability: 0.89 },
+            { condition: 'Nódulo', probability: 0.07 },
             { condition: 'Atelectasia', probability: 0.03 },
-            { condition: 'Nódulo', probability: 0.01 }
+            { condition: 'Derrame', probability: 0.01 },
+            { condition: 'Normal', probability: 0.00 }
         ],
         recommendations: [
-            'Correlacionar con clínica y laboratorio.',
-            'Considerar inicio de antibiótico según protocolo.',
-            'Repetir imagen en 4-6 semanas.'
+            'Referir urgentemente a oncología torácica.',
+            'Tomografía (TC) de tórax con contraste.',
+            'Biopsia guiada por imagen sugerida.'
         ],
         timeline: [
-            'Carga segura y anonimización completadas.',
-            'Preprocesamiento avanzado (CLAHE, centrado).',
-            'DenseNet121 ejecutado en GPU (2.4s).',
-            'Heatmap resaltó consolidación basal.',
-            'Reporte estructurado generado.'
+            'Análisis de densidad de la lesión.',
+            'Comparación con banco de tumores.',
+            'Cálculo de dimensiones aproximadas.',
+            'Heatmap centrado en lesión derecha.',
+            'Reporte oncológico preliminar.'
         ]
     },
     {
-        id: 'nodule',
-        label: 'Tamizaje anual',
-        patient: 'Marina Q.',
-        age: 46,
-        image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=900&q=80',
-        model: 'EfficientNet + post-proceso',
-        analysisTime: '2.4s',
-        summary: 'Nódulo solitario de 8mm en lóbulo superior izquierdo. Sugerir TC de alta resolución.',
-        confidence: 0.68,
+        id: 'covid',
+        label: 'Caso 3: COVID-19 / Viral',
+        patient: 'Luis M.',
+        age: 38,
+        image: '/assets/demo/covidd.png',
+        model: 'CovidNet-Custom',
+        analysisTime: '1.9s',
+        summary: 'Opacidades en vidrio deslustrado periféricas. Patrón típico de neumonía viral (COVID-19).',
+        confidence: 0.92,
         results: [
-            { condition: 'Nódulo', probability: 0.68 },
-            { condition: 'Normal', probability: 0.18 },
-            { condition: 'Masa', probability: 0.07 },
-            { condition: 'Tuberculosis', probability: 0.04 },
-            { condition: 'Neumonía', probability: 0.03 }
+            { condition: 'Covid-19', probability: 0.92 },
+            { condition: 'Neumonía', probability: 0.06 },
+            { condition: 'Normal', probability: 0.01 },
+            { condition: 'Infiltración', probability: 0.01 },
+            { condition: 'Atelectasia', probability: 0.00 }
         ],
         recommendations: [
-            'Solicitar tomografía computarizada para caracterización.',
-            'Comparar con estudios previos si están disponibles.',
-            'Registrar en registro de nódulos pulmonares.'
+            'Prueba PCR para confirmar SARS-CoV-2.',
+            'Monitoreo de saturación de oxígeno.',
+            'Manejo sintomático y aislamiento.'
         ],
         timeline: [
-            'Imagen recibida vía API (HTTPS).',
-            'Normalización gamma + reducción de ruido.',
-            'Inferencia combinada (EfficientNet + heurísticas).',
-            'Heatmap confirma foco apical.',
-            'Generado checklist para radiólogo.'
+            'Detección de patrones de vidrio deslustrado.',
+            'Distribución periférica identificada.',
+            'Correlación con dataset COVID-19.',
+            'Evaluación de severidad leve-moderada.',
+            'Generación de resumen infeccioso.'
         ]
     }
 ];
@@ -284,7 +285,7 @@ export default function Demo() {
                                             </div>
                                         </div>
                                     </div>
-                                <div className="p-6 space-y-4 bg-white dark:bg-slate-900">
+                                    <div className="p-6 space-y-4 bg-white dark:bg-slate-900">
                                         <div>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">Diagnóstico principal</p>
                                             <div className="flex items-center gap-2">
