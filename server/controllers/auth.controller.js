@@ -142,16 +142,30 @@ exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
 
     try {
+        console.log('🔐 [forgotPassword] Solicitud de recuperación de contraseña recibida');
+        console.log('   - Email solicitado:', email);
+        console.log('   - FRONTEND_URL:', process.env.FRONTEND_URL || 'No configurado (usando localhost:3000)');
+        
         const user = await User.findOne({ email });
 
         if (!user) {
+            console.log('⚠️ [forgotPassword] Usuario no encontrado con email:', email);
             return res.status(200).json({ message: 'Si el correo existe, enviaremos instrucciones para restablecer la contraseña.' });
         }
 
+        console.log('✅ [forgotPassword] Usuario encontrado:');
+        console.log('   - ID:', user._id);
+        console.log('   - Username:', user.username);
+        console.log('   - Email:', user.email);
+        
+        console.log('🔐 [forgotPassword] Generando token de reset...');
         const resetToken = user.generatePasswordResetToken();
         await user.save({ validateBeforeSave: false });
+        console.log('✅ [forgotPassword] Token de reset generado y guardado en la base de datos');
 
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password/${resetToken}`;
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+        const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
+        console.log('🔗 [forgotPassword] URL de reset generada:', resetUrl);
 
         const message = `
             <p>Hola ${user.firstName || user.username},</p>
@@ -165,17 +179,36 @@ exports.forgotPassword = async (req, res) => {
             <p>— Equipo MedScan AI</p>
         `;
 
+        console.log('📧 [forgotPassword] Preparando envío de email...');
         await sendEmail({
             to: user.email,
             subject: 'Restablece tu contraseña - MedScan AI',
             html: message,
             text: `Visita este enlace para restablecer tu contraseña: ${resetUrl}`
         });
+        console.log('✅ [forgotPassword] Email enviado exitosamente');
 
         res.json({ message: 'Enviamos un correo con instrucciones para restablecer tu contraseña.' });
     } catch (error) {
-        console.error('Error sending reset email:', error);
-        res.status(500).json({ message: 'No pudimos procesar la solicitud. Intenta más tarde.' });
+        console.error('❌ [forgotPassword] Error completo en el proceso de recuperación de contraseña:');
+        console.error('   - Tipo de error:', error.constructor.name);
+        console.error('   - Mensaje:', error.message);
+        console.error('   - Código:', error.code);
+        console.error('   - Stack completo:', error.stack);
+        
+        // Errores específicos
+        if (error.code === 'EAUTH') {
+            console.error('   ⚠️ Error de autenticación con el servidor de email');
+        } else if (error.code === 'ECONNECTION') {
+            console.error('   ⚠️ Error de conexión con el servidor de email');
+        } else if (error.code === 'ETIMEDOUT') {
+            console.error('   ⚠️ Timeout al conectar con el servidor de email');
+        }
+        
+        res.status(500).json({ 
+            message: 'No pudimos procesar la solicitud. Intenta más tarde.',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 };
 
