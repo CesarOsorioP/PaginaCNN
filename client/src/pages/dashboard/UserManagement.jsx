@@ -200,7 +200,7 @@ export default function UserManagement() {
     }
 
     return (
-        <div className="">
+        <div className="max-w-full">
             <NavigationButtons />
             {/* Header */}
             <div className="mb-8 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
