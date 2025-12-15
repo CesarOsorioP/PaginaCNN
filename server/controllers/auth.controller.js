@@ -16,19 +16,33 @@ exports.register = async (req, res) => {
     const { username, email, password } = req.body;
 
     try {
+        // Validar que el email tenga formato válido
+        if (!email || !email.includes('@')) {
+            return res.status(400).json({ message: 'El formato del correo electrónico no es válido.' });
+        }
+
+        // Validación de dominios permitidos
+        const allowedDomains = ['gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'yahoo.com', 'icloud.com'];
+        const emailParts = email.split('@');
+        
+        if (emailParts.length !== 2) {
+            return res.status(400).json({ message: 'El formato del correo electrónico no es válido.' });
+        }
+
+        const domain = emailParts[1].toLowerCase().trim();
+        
+        // Verificar si el dominio está en la lista de permitidos
+        if (!allowedDomains.includes(domain)) {
+            return res.status(400).json({ 
+                message: `El dominio de correo electrónico "${domain}" no está permitido. Solo se permiten los siguientes dominios: ${allowedDomains.join(', ')}.` 
+            });
+        }
+
         const userExists = await User.findOne({ email });
 
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
         }
-
-        // Basic validation for email domains
-        const allowedDomains = ['gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'yahoo.com', 'icloud.com'];
-        const domain = email.split('@')[1];
-        // Note: For institutional emails, we need a separate validation flow (email confirmation)
-        // For now, we'll allow if in list OR if we implement the confirmation flow.
-        // The requirement says: "validated (gmail...) AND for institutional validation via confirmation email"
-        // We'll implement a basic check here.
 
         const user = await User.create({
             username,

@@ -20,12 +20,22 @@ const MODEL_INFO = {
     }
 };
 
+const ANALYSIS_STEPS = [
+    { id: 'upload', label: 'Carga de imagen', icon: 'cloud_upload', threshold: 15 },
+    { id: 'preprocess', label: 'Preprocesamiento', icon: 'blur_on', threshold: 40 },
+    { id: 'inference', label: 'Inferencia IA', icon: 'neurology', threshold: 75 },
+    { id: 'explain', label: 'Generando heatmap', icon: 'insights', threshold: 95 },
+    { id: 'complete', label: 'Finalizando', icon: 'check_circle', threshold: 100 }
+];
+
 export default function Upload() {
     const navigate = useNavigate();
     const [selectedFile, setSelectedFile] = useState(null);
     const [preview, setPreview] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
     const [analyzing, setAnalyzing] = useState(false);
+    const [analysisProgress, setAnalysisProgress] = useState(0);
+    const [currentStep, setCurrentStep] = useState(0);
     const fileInputRef = useRef(null);
     const [models, setModels] = useState([]);
     const [modelsLoading, setModelsLoading] = useState(true);
@@ -75,6 +85,27 @@ export default function Upload() {
             isMounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (analyzing) {
+            setAnalysisProgress(0);
+            setCurrentStep(0);
+            
+            const interval = setInterval(() => {
+                setAnalysisProgress((prev) => {
+                    const next = Math.min(prev + 1.5, 99);
+                    const step = ANALYSIS_STEPS.findIndex(({ threshold }) => next < threshold);
+                    setCurrentStep(step === -1 ? ANALYSIS_STEPS.length - 1 : step);
+                    return next;
+                });
+            }, 100);
+
+            return () => clearInterval(interval);
+        } else {
+            setAnalysisProgress(0);
+            setCurrentStep(0);
+        }
+    }, [analyzing]);
 
     const handleFileSelect = (file) => {
         if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
@@ -139,21 +170,140 @@ export default function Upload() {
         }
     };
 
+    useEffect(() => {
+        if (analyzing) {
+            setAnalysisProgress(0);
+            setCurrentStep(0);
+            
+            const interval = setInterval(() => {
+                setAnalysisProgress((prev) => {
+                    const next = Math.min(prev + 1.5, 99);
+                    const step = ANALYSIS_STEPS.findIndex(({ threshold }) => next < threshold);
+                    setCurrentStep(step === -1 ? ANALYSIS_STEPS.length - 1 : step);
+                    return next;
+                });
+            }, 100);
+
+            return () => clearInterval(interval);
+        }
+    }, [analyzing]);
+
     if (analyzing) {
+        const currentStepInfo = ANALYSIS_STEPS[currentStep] || ANALYSIS_STEPS[0];
+        
         return (
-            <div className="flex flex-col items-center justify-center min-h-[60vh] text-slate-900 dark:text-white">
-                <div className="relative w-24 h-24 mb-6">
-                    <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-700 rounded-full"></div>
-                    <div className="absolute inset-0 border-4 border-cyan-500 dark:border-cyan-400 rounded-full border-t-transparent animate-spin"></div>
-                    <span className="material-symbols-outlined absolute inset-0 flex items-center justify-center text-cyan-600 dark:text-cyan-400 text-3xl">
-                        radiology
-                    </span>
+            <div className="flex flex-col items-center justify-center min-h-[80vh] text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900">
+                <div className="max-w-2xl w-full px-6">
+                    {/* Spinner y título principal */}
+                    <div className="flex flex-col items-center mb-8">
+                        <div className="relative w-32 h-32 mb-6">
+                            <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-700 rounded-full"></div>
+                            <div className="absolute inset-0 border-4 border-cyan-500 dark:border-cyan-400 rounded-full border-t-transparent animate-spin"></div>
+                            <span className="material-symbols-outlined absolute inset-0 flex items-center justify-center text-cyan-600 dark:text-cyan-400 text-5xl">
+                                radiology
+                            </span>
+                        </div>
+                        <h2 className="text-3xl font-bold mb-3 text-center">Analizando Radiografía</h2>
+                        <p className="text-slate-600 dark:text-slate-400 text-center text-lg mb-2">
+                            Ejecutando <span className="text-cyan-600 dark:text-cyan-400 font-semibold">{MODEL_INFO[selectedModel]?.name || 'modelo IA'}</span>
+                        </p>
+                        <p className="text-slate-500 dark:text-slate-500 text-center text-sm">
+                            Estamos generando probabilidades y mapas de calor interpretables.
+                        </p>
+                    </div>
+
+                    {/* Barra de progreso principal */}
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 mb-6 shadow-lg">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-400 text-2xl">
+                                    {currentStepInfo.icon}
+                                </span>
+                                <div>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400">Estado actual</p>
+                                    <p className="text-lg font-semibold text-slate-900 dark:text-white">{currentStepInfo.label}</p>
+                                </div>
+                            </div>
+                            <span className="text-2xl font-bold text-cyan-600 dark:text-cyan-400">{Math.round(analysisProgress)}%</span>
+                        </div>
+                        <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-4">
+                            <div
+                                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 dark:from-cyan-400 dark:to-blue-400 transition-all duration-300 ease-out"
+                                style={{ width: `${analysisProgress}%` }}
+                            ></div>
+                        </div>
+                    </div>
+
+                    {/* Pasos del proceso */}
+                    <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-6 shadow-lg">
+                        <h3 className="text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-4">Proceso de análisis</h3>
+                        <div className="space-y-4">
+                            {ANALYSIS_STEPS.map((step, index) => {
+                                const isActive = index === currentStep;
+                                const isCompleted = index < currentStep;
+                                
+                                return (
+                                    <div
+                                        key={step.id}
+                                        className={`flex items-start gap-4 p-3 rounded-lg transition-all ${
+                                            isActive
+                                                ? 'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800'
+                                                : isCompleted
+                                                ? 'bg-slate-50 dark:bg-slate-700/30'
+                                                : 'bg-transparent'
+                                        }`}
+                                    >
+                                        <div
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center border-2 flex-shrink-0 transition-all ${
+                                                isActive
+                                                    ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300'
+                                                    : isCompleted
+                                                    ? 'border-green-500 dark:border-green-400 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                                    : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'
+                                            }`}
+                                        >
+                                            {isCompleted ? (
+                                                <span className="material-symbols-outlined text-lg">check</span>
+                                            ) : (
+                                                <span className="material-symbols-outlined text-lg">{step.icon}</span>
+                                            )}
+                                        </div>
+                                        <div className="flex-1">
+                                            <p
+                                                className={`font-semibold mb-1 ${
+                                                    isActive
+                                                        ? 'text-cyan-900 dark:text-cyan-200'
+                                                        : isCompleted
+                                                        ? 'text-slate-700 dark:text-slate-300'
+                                                        : 'text-slate-400 dark:text-slate-500'
+                                                }`}
+                                            >
+                                                {step.label}
+                                            </p>
+                                            {isActive && (
+                                                <div className="flex items-center gap-2 text-xs text-cyan-600 dark:text-cyan-400">
+                                                    <div className="flex gap-1">
+                                                        <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse"></div>
+                                                        <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                                                        <div className="w-1 h-1 bg-cyan-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                                                    </div>
+                                                    <span>En proceso...</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Información adicional */}
+                    <div className="mt-6 text-center">
+                        <p className="text-xs text-slate-400 dark:text-slate-500">
+                            Esto puede tomar unos segundos. Por favor, no cierres esta ventana.
+                        </p>
+                    </div>
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Analizando Radiografía</h2>
-                <p className="text-slate-500 dark:text-slate-400 text-center px-4">
-                    Ejecutando <span className="text-cyan-600 dark:text-cyan-400 font-semibold">{MODEL_INFO[selectedModel]?.name || 'modelo IA'}</span>.
-                    Estamos generando probabilidades y mapas de calor interpretables.
-                </p>
             </div>
         );
     }
