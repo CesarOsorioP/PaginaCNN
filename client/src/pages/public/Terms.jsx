@@ -20,7 +20,7 @@ export default function Terms() {
             <p className="mb-4">NombrePagina no se hace responsable de decisiones médicas tomadas basándose únicamente en los resultados de este software. El usuario asume toda la responsabilidad por el uso de la información proporcionada.</p>
 
             <h3 className="text-xl font-bold mb-2">4. Privacidad de Datos</h3>
-            <p className="mb-4">Nos comprometemos a proteger la privacidad de los datos de los pacientes conforme a las regulaciones vigentes (HIPAA/GDPR). Consulte nuestra Política de Privacidad para más detalles.</p>
+            <p className="mb-4">Nos comprometemos a proteger la privacidad de los datos de los pacientes. Consulte nuestra Política de Privacidad para más detalles.</p>
         </div>
     </div>
   );

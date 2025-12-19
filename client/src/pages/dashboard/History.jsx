@@ -32,6 +32,21 @@ export default function History() {
         fetchStudies();
     }, []);
 
+    const handleDeleteStudy = async (studyId) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este estudio? Esta acción no se puede deshacer.')) {
+            return;
+        }
+
+        try {
+            await api.delete(`/studies/${studyId}`);
+            // Actualizar la lista eliminando el estudio eliminado
+            setStudies(studies.filter(study => study._id !== studyId));
+        } catch (error) {
+            console.error('Error deleting study:', error);
+            alert('Error al eliminar el estudio. Por favor, intenta nuevamente.');
+        }
+    };
+
     const getResultBadge = (condition) => {
         const conditionLower = condition?.toLowerCase() || '';
 
@@ -113,7 +128,7 @@ export default function History() {
                         <tbody className="divide-y divide-slate-200 dark:divide-slate-700">
                             {filteredStudies.length === 0 ? (
                                 <tr>
-                                    <td colSpan="6" className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
+                                    <td colSpan="7" className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
                                         No se encontraron estudios
                                     </td>
                                 </tr>
@@ -150,13 +165,23 @@ export default function History() {
                                                 {(topResult.probability * 100).toFixed(1)}%
                                             </td>
                                             <td className="px-4 sm:px-6 py-4 text-right">
-                                                <Link
-                                                    to={`/report/${study._id}`}
-                                                    className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300"
-                                                >
-                                                    <span className="material-symbols-outlined text-sm">visibility</span>
-                                                    Ver
-                                                </Link>
+                                                <div className="flex items-center justify-end gap-3">
+                                                    <Link
+                                                        to={`/report/${study._id}`}
+                                                        className="inline-flex items-center gap-1 text-cyan-600 dark:text-cyan-400 hover:text-cyan-500 dark:hover:text-cyan-300"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">visibility</span>
+                                                        Ver
+                                                    </Link>
+                                                    <button
+                                                        onClick={() => handleDeleteStudy(study._id)}
+                                                        className="inline-flex items-center gap-1 text-red-600 dark:text-red-400 hover:text-red-500 dark:hover:text-red-300 transition-colors"
+                                                        title="Eliminar estudio"
+                                                    >
+                                                        <span className="material-symbols-outlined text-sm">delete</span>
+                                                        Eliminar
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );

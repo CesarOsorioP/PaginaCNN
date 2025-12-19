@@ -198,3 +198,42 @@ exports.getStudyById = async (req, res) => {
     }
 };
 
+// @desc    Delete study
+// @route   DELETE /api/studies/:id
+// @access  Private
+exports.deleteStudy = async (req, res) => {
+    try {
+        const study = await Study.findById(req.params.id);
+
+        if (!study) {
+            return res.status(404).json({ message: 'Estudio no encontrado' });
+        }
+
+        // Check if user owns the study or is admin
+        if (study.user.toString() !== req.user._id.toString() && req.user.role !== 'Admin' && req.user.role !== 'Superadmin') {
+            return res.status(401).json({ message: 'No autorizado para eliminar este estudio' });
+        }
+
+        // Delete the image file if it exists
+        if (study.imageUrl && study.imageUrl.startsWith('/uploads/')) {
+            const imagePath = path.join(__dirname, '../uploads', path.basename(study.imageUrl));
+            if (fs.existsSync(imagePath)) {
+                try {
+                    fs.unlinkSync(imagePath);
+                    console.log(`✅ Imagen eliminada: ${imagePath}`);
+                } catch (fileError) {
+                    console.warn(`⚠️ Error eliminando imagen: ${fileError.message}`);
+                }
+            }
+        }
+
+        // Delete the study from database
+        await Study.findByIdAndDelete(req.params.id);
+
+        res.json({ message: 'Estudio eliminado correctamente' });
+    } catch (error) {
+        console.error('Error deleting study:', error);
+        res.status(500).json({ message: error.message });
+    }
+};
+

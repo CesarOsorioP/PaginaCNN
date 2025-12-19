@@ -4,6 +4,8 @@ import api from '../../api/axios';
 import NavigationButtons from '../../components/NavigationButtons';
 import HelperTooltip from '../../components/HelperTooltip';
 import { useTheme } from '../../context/ThemeContext';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const MODEL_METADATA = {
     efficientnet: {
@@ -221,6 +223,154 @@ export default function Report() {
     const hasAnomaly = diagnosisInfo.probability > 0.5 && !diagnosisInfo.condition.toLowerCase().includes('normal');
     const top3Results = study.results?.slice(0, 3) || [];
 
+    const handleDownloadPDF = async () => {
+        const doc = new jsPDF();
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 20;
+        let yPos = 20;
+
+        // --- Header ---
+        doc.setFillColor(8, 145, 178); // Cyan-600
+        doc.rect(0, 0, pageWidth, 40, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(22);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Reporte de Análisis IA', margin, 20);
+        
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`ID Estudio: #${id.slice(-6).toUpperCase()}`, margin, 30);
+        doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, pageWidth - margin - 40, 30);
+
+        yPos = 55;
+
+        // --- Diagnóstico Principal ---
+        doc.setTextColor(33, 33, 33);
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Diagnóstico Principal', margin, yPos);
+        yPos += 10;
+
+        doc.setFontSize(18);
+        doc.setTextColor(diagnosisInfo.condition.toLowerCase().includes('normal') ? 'green' : 'red');
+        doc.text(diagnosisInfo.condition, margin, yPos);
+        
+        doc.setFontSize(12);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Confianza: ${(diagnosisInfo.probability * 100).toFixed(1)}%`, pageWidth - margin - 50, yPos);
+        yPos += 10;
+
+        doc.setFontSize(11);
+        doc.setTextColor(60, 60, 60);
+        doc.setFont('helvetica', 'normal');
+        // Dividir texto largo en líneas
+        const descLines = doc.splitTextToSize(diagnosisInfo.description, pageWidth - (margin * 2));
+        doc.text(descLines, margin, yPos);
+        yPos += (descLines.length * 6) + 10;
+
+        // --- Imagen Radiografía ---
+        if (study.imageUrl) {
+            try {
+                const imgUrl = getImageUrl(study.imageUrl);
+                // Crear una imagen temporal para asegurar que se carga
+                const img = new Image();
+                img.src = imgUrl;
+                await new Promise((resolve) => {
+                    img.onload = resolve;
+                    img.onerror = resolve; // Continuar aunque falle
+                });
+
+                // Calcular dimensiones manteniendo ratio, max altura 80mm
+                const imgRatio = img.width / img.height;
+                const imgHeight = 80;
+                const imgWidth = imgHeight * imgRatio;
+                
+                // Centrar imagen
+                const xPos = (pageWidth - imgWidth) / 2;
+                
+                // Si la imagen se sale, agregar nueva página
+                if (yPos + imgHeight > 280) {
+                    doc.addPage();
+                    yPos = 20;
+                }
+
+                doc.addImage(img, 'JPEG', xPos, yPos, imgWidth, imgHeight);
+                yPos += imgHeight + 10;
+            } catch (error) {
+                console.error("Error adding image to PDF", error);
+            }
+        }
+
+        // --- Tabla de Probabilidades ---
+        if (yPos + 40 > 280) {
+            doc.addPage();
+            yPos = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(33, 33, 33);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Análisis Detallado', margin, yPos);
+        yPos += 5;
+
+        const tableData = study.results.map(r => [
+            r.condition,
+            `${(r.probability * 100).toFixed(1)}%`,
+            r.probability > 0.5 ? 'Alta' : (r.probability > 0.1 ? 'Moderada' : 'Baja')
+        ]);
+
+        autoTable(doc, {
+            startY: yPos,
+            head: [['Condición', 'Probabilidad', 'Nivel de Riesgo']],
+            body: tableData,
+            theme: 'grid',
+            headStyles: { fillColor: [8, 145, 178] },
+            styles: { fontSize: 10 },
+            margin: { left: margin, right: margin }
+        });
+        
+        yPos = doc.lastAutoTable.finalY + 15;
+
+        // --- Recomendaciones ---
+        // Verificar espacio para recomendaciones
+        if (yPos + 40 > 280) {
+            doc.addPage();
+            yPos = 20;
+        }
+
+        doc.setFontSize(14);
+        doc.setTextColor(33, 33, 33);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Recomendaciones Clínicas', margin, yPos);
+        yPos += 10;
+
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+
+        recommendations.forEach(rec => {
+            doc.text(`• ${rec}`, margin + 5, yPos);
+            yPos += 7;
+        });
+
+        // --- Footer ---
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setTextColor(150, 150, 150);
+            doc.text(
+                `Generado automáticamente por NombrePagina AI - Página ${i} de ${pageCount}`,
+                pageWidth / 2,
+                doc.internal.pageSize.getHeight() - 10,
+                { align: 'center' }
+            );
+        }
+
+        doc.save(`reporte_medico_${id}.pdf`);
+    };
+
     return (
         <div className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 min-h-screen">
             <NavigationButtons />
@@ -237,7 +387,10 @@ export default function Report() {
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-slate-900 dark:text-white">Reporte de Análisis IA</h1>
                     <p className="text-slate-600 dark:text-slate-400 text-sm">Inteligencia Artificial Explicable - Visualización de Atención</p>
                 </div>
-                <button className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md">
+                <button 
+                    onClick={handleDownloadPDF}
+                    className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md"
+                >
                     <span className="material-symbols-outlined">download</span>
                     Descargar PDF
                 </button>
