@@ -1,10 +1,12 @@
 import React from 'react';
 
 export default function HelperTooltip({ text, position = 'top' }) {
+    // En móviles, siempre usar 'bottom' para evitar que se corte
+    // En pantallas grandes (sm:), usar la posición especificada
     const positions = {
         top: 'bottom-full mb-3 left-1/2 -translate-x-1/2',
-        right: 'left-full ml-3 top-1/2 -translate-y-1/2',
-        left: 'right-full mr-3 top-1/2 -translate-y-1/2'
+        right: 'bottom-full mb-3 left-1/2 -translate-x-1/2 sm:bottom-auto sm:mb-0 sm:left-full sm:ml-3 sm:top-1/2 sm:-translate-y-1/2',
+        left: 'bottom-full mb-3 left-1/2 -translate-x-1/2 sm:bottom-auto sm:mb-0 sm:right-full sm:mr-3 sm:top-1/2 sm:-translate-y-1/2'
     };
 
     return (
@@ -14,7 +16,7 @@ export default function HelperTooltip({ text, position = 'top' }) {
             </span>
             <span
                 className={`pointer-events-none absolute ${positions[position] || positions.top
-                    } bg-slate-900 text-slate-100 text-xs rounded-lg px-3 py-2 w-56 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 border border-slate-700`}
+                    } bg-slate-900 text-slate-100 text-xs rounded-lg px-3 py-2 w-56 max-w-[calc(100vw-2rem)] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 border border-slate-700 z-50`}
             >
                 {text}
             </span>
