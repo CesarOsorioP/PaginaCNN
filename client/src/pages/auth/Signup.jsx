@@ -46,6 +46,14 @@ export default function Signup() {
             </div>
 
             <button
+                onClick={() => navigate('/')}
+                className="absolute top-4 left-4 p-2 rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-all duration-300 hover:scale-110 z-10 flex items-center gap-1"
+                title="Volver"
+            >
+                <span className="material-symbols-outlined">arrow_back</span>
+            </button>
+
+            <button
                 onClick={toggleTheme}
                 className="absolute top-4 right-4 p-2 rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-all duration-300 hover:scale-110 z-10"
             >

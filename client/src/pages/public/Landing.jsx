@@ -3,25 +3,11 @@ import { Link } from 'react-router-dom';
 import Navbar from '../../components/layout/Navbar';
 import Footer from '../../components/layout/Footer';
 import FadeInWhenVisible from '../../components/animations/FadeInWhenVisible';
-
-// Mock Navbar/Footer if they don't exist yet to prevent crash, or use existing if they do.
-// I'll assume for now I should use the user's structure.
-// If Navbar/Footer are missing, I'll need to create them or comment them out.
-// I'll check file structure in a moment, but for now let's assume they might need to be created or I'll inline a simple version if not found.
-// Actually, the user's snippet imported them, so they likely exist or are expected.
-// I will create simple placeholders if I can't find them, but I'll try to import them.
-
-// For this file, I'll stick to the user's imports but I'll comment them out if I'm not sure they exist, 
-// BUT the user provided code WITH them, so I will assume they exist or I should create them.
-// Let's check if they exist first? No, I'll just write the Landing page and if they fail I'll fix.
-// Actually, better to be safe. I'll define simple internal components if I can't verify.
-// But the user said "Los diseños... estaban anteriormente", implying they might exist.
-// I will assume they exist.
-
-// Wait, I need to make sure I don't break the build.
-// I'll check the directory structure for components/layout.
+import { useAuth } from '../../context/AuthContext';
 
 export default function Landing() {
+    const { isAuthenticated } = useAuth();
+
     const techs = [
         { name: 'React', icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg' },
         { name: 'Tailwind CSS', icon: 'https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/tailwindcss/tailwindcss-original.svg' },
@@ -71,9 +57,15 @@ export default function Landing() {
                             Obtén una segunda opinión instantánea y precisa. Nuestra tecnología detecta anomalías pulmonares en segundos para apoyar tu decisión médica.
                         </p>
                         <div className="flex flex-col sm:flex-row justify-center gap-4 flex-wrap">
-                            <Link to="/signup" className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl text-lg font-bold shadow-lg shadow-primary-600/30 hover:shadow-primary-600/40 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center">
-                                Comenzar ahora <span className="material-symbols-outlined ml-2">arrow_forward</span>
-                            </Link>
+                            {isAuthenticated ? (
+                                <Link to="/dashboard" className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl text-lg font-bold shadow-lg shadow-primary-600/30 hover:shadow-primary-600/40 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center">
+                                    Ir al Dashboard <span className="material-symbols-outlined ml-2">dashboard</span>
+                                </Link>
+                            ) : (
+                                <Link to="/signup" className="bg-primary-600 hover:bg-primary-700 text-white px-8 py-4 rounded-xl text-lg font-bold shadow-lg shadow-primary-600/30 hover:shadow-primary-600/40 hover:-translate-y-1 transition-all duration-300 flex items-center justify-center">
+                                    Comenzar ahora <span className="material-symbols-outlined ml-2">arrow_forward</span>
+                                </Link>
+                            )}
                             <a href="#features" className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-8 py-4 rounded-xl text-lg font-bold shadow-sm hover:shadow-md hover:-translate-y-1 transition-all duration-300 dark:bg-slate-800 dark:text-white dark:border-slate-700 dark:hover:bg-slate-700 flex items-center justify-center">
                                 <span className="material-symbols-outlined mr-2">play_circle</span> Saber más
                             </a>
@@ -182,9 +174,16 @@ export default function Landing() {
                     <div className="relative max-w-4xl mx-auto px-4">
                         <h2 className="text-4xl md:text-5xl font-bold mb-6 tracking-tight">¿Listo para modernizar tu diagnóstico?</h2>
                         <p className="text-primary-100 text-xl mb-10 max-w-2xl mx-auto font-light">Únete a la revolución de la salud digital hoy mismo.</p>
-                        <Link to="/signup" className="bg-white text-primary-700 hover:bg-primary-50 px-10 py-4 rounded-xl text-lg font-bold shadow-xl transition-transform hover:-translate-y-1 inline-flex items-center">
-                            Crear cuenta gratuita
-                        </Link>
+                        {isAuthenticated ? (
+                            <Link to="/upload" className="bg-white text-primary-700 hover:bg-primary-50 px-10 py-4 rounded-xl text-lg font-bold shadow-xl transition-transform hover:-translate-y-1 inline-flex items-center">
+                                Analizar radiografía
+                                <span className="material-symbols-outlined ml-2">radiology</span>
+                            </Link>
+                        ) : (
+                            <Link to="/signup" className="bg-white text-primary-700 hover:bg-primary-50 px-10 py-4 rounded-xl text-lg font-bold shadow-xl transition-transform hover:-translate-y-1 inline-flex items-center">
+                                Crear cuenta gratuita
+                            </Link>
+                        )}
                     </div>
                 </FadeInWhenVisible>
             </section>

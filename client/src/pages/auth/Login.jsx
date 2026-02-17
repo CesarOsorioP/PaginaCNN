@@ -7,17 +7,31 @@ export default function Login() {
     const { isDark, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const { login } = useAuth();
-    const [email, setEmail] = useState('');
+    const [email, setEmail] = useState(() => localStorage.getItem('rememberedEmail') || '');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(() => !!localStorage.getItem('rememberedEmail'));
+
+    const handleRememberToggle = (e) => {
+        const checked = e.target.checked;
+        setRememberMe(checked);
+        if (!checked) {
+            localStorage.removeItem('rememberedEmail');
+        }
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
         setLoading(true);
         try {
+            if (rememberMe) {
+                localStorage.setItem('rememberedEmail', email);
+            } else {
+                localStorage.removeItem('rememberedEmail');
+            }
             await login(email, password);
             navigate('/dashboard');
         } catch (err) {
@@ -34,6 +48,14 @@ export default function Login() {
                 <div className="absolute top-0 right-0 w-96 h-96 bg-primary-200/20 rounded-full blur-3xl dark:bg-primary-900/10 animate-pulse"></div>
                 <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-200/20 rounded-full blur-3xl dark:bg-blue-900/10 animate-pulse" style={{ animationDelay: '1s' }}></div>
             </div>
+
+            <button
+                onClick={() => navigate('/')}
+                className="absolute top-4 left-4 p-2 rounded-full text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 transition-all duration-300 hover:scale-110 z-10 flex items-center gap-1"
+                title="Volver"
+            >
+                <span className="material-symbols-outlined">arrow_back</span>
+            </button>
 
             <button
                 onClick={toggleTheme}
@@ -105,7 +127,7 @@ export default function Login() {
 
                     <div className="flex items-center justify-between">
                         <div className="flex items-center">
-                            <input id="remember-me" type="checkbox" className="h-4 w-4 text-primary-600 focus:ring-primary-600 border-slate-300 rounded dark:bg-slate-700 dark:border-slate-600" />
+                            <input id="remember-me" type="checkbox" checked={rememberMe} onChange={handleRememberToggle} className="h-4 w-4 text-primary-600 focus:ring-primary-600 border-slate-300 rounded dark:bg-slate-700 dark:border-slate-600" />
                             <label htmlFor="remember-me" className="ml-2 block text-sm text-slate-900 dark:text-slate-300">Recordarme</label>
                         </div>
                         <div className="text-sm">

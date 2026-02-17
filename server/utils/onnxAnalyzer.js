@@ -19,6 +19,23 @@ const CLASS_NAMES = {
 const CLASS_ORDER = ['Atelectasis', 'COVID-19', 'Edema', 'Mass', 'Nodule', 'Normal', 'Pneumonia', 'Tuberculosis'];
 const IMG_SIZE = 224; // El modelo espera imágenes de 224x224
 
+// Configuración del modelo clasificador de radiografías de tórax
+const CLASSIFIER_CONFIG = {
+    name: 'ChestXrayClassifier',
+    paths: [
+        path.join(__dirname, '../densenet_chest_xray_model.onnx'),
+        path.join(process.cwd(), 'densenet_chest_xray_model.onnx'),
+        path.join(process.cwd(), 'server', 'densenet_chest_xray_model.onnx')
+    ],
+    // Clases: {0: 'chest_xray', 1: 'other_images'}
+    CHEST_XRAY_INDEX: 0,
+    OTHER_IMAGES_INDEX: 1,
+    // Umbral mínimo de confianza para aceptar como radiografía de tórax.
+    // El modelo debe tener al menos este porcentaje de certeza de que es
+    // una radiografía de tórax para dejarla pasar al análisis de enfermedades.
+    MIN_CHEST_XRAY_CONFIDENCE: 0.60
+};
+
 // Configuración de modelos disponibles
 const MODEL_CONFIGS = {
     'efficientnet': {
@@ -179,6 +196,75 @@ class ONNXAnalyzer {
         } catch (error) {
             console.error('❌ Error preprocessing image:', error.message);
             console.error('Stack:', error.stack);
+            throw error;
+        }
+    }
+
+    async loadClassifier() {
+        if (this.models['__classifier__']) {
+            return this.models['__classifier__'];
+        }
+
+        try {
+            const modelPath = CLASSIFIER_CONFIG.paths.find(p => fs.existsSync(p));
+            if (!modelPath) {
+                throw new Error(`Modelo clasificador no encontrado. Buscado en: ${CLASSIFIER_CONFIG.paths.join(', ')}`);
+            }
+
+            console.log(`📦 Cargando clasificador de radiografías desde: ${modelPath}`);
+            const model = await ort.InferenceSession.create(modelPath, {
+                executionProviders: ['cpu']
+            });
+
+            this.models['__classifier__'] = model;
+
+            console.log(`✅ Clasificador cargado exitosamente`);
+            console.log(`📥 Inputs: ${model.inputNames.join(', ')}`);
+            console.log(`📤 Outputs: ${model.outputNames.join(', ')}`);
+            return model;
+        } catch (error) {
+            console.error('❌ Error cargando clasificador:', error.message);
+            throw error;
+        }
+    }
+
+    async classifyChestXray(imagePath) {
+        try {
+            const model = await this.loadClassifier();
+            const { tensor } = await this.preprocessImage(imagePath);
+
+            const inputName = model.inputNames[0];
+            console.log(`🔍 Clasificando imagen: ¿Es radiografía de tórax?`);
+
+            const feeds = { [inputName]: tensor };
+            const results = await model.run(feeds);
+
+            const outputName = model.outputNames?.[0] || Object.keys(results)[0];
+            const output = results[outputName];
+            const rawScores = Array.from(output.data);
+
+            // Aplicar softmax a las 2 clases
+            const expScores = rawScores.map(s => Math.exp(Math.max(-50, Math.min(50, s))));
+            const sumExp = expScores.reduce((a, b) => a + b, 0);
+            const softmaxProbs = expScores.map(e => e / sumExp);
+
+            const chestXrayProb = softmaxProbs[CLASSIFIER_CONFIG.CHEST_XRAY_INDEX];
+            const otherProb = softmaxProbs[CLASSIFIER_CONFIG.OTHER_IMAGES_INDEX];
+            const threshold = CLASSIFIER_CONFIG.MIN_CHEST_XRAY_CONFIDENCE;
+            const isChestXray = chestXrayProb >= threshold;
+
+            console.log(`📊 Clasificación - Radiografía de tórax: ${(chestXrayProb * 100).toFixed(2)}%, Otra imagen: ${(otherProb * 100).toFixed(2)}%`);
+            console.log(`📊 Umbral mínimo requerido: ${(threshold * 100).toFixed(0)}%`);
+            console.log(`${isChestXray ? '✅' : '❌'} Resultado: ${isChestXray ? 'ES radiografía de tórax' : 'NO es radiografía de tórax (no supera el umbral de confianza)'}`);
+
+            return {
+                isChestXray,
+                confidence: isChestXray ? chestXrayProb : otherProb,
+                chestXrayProbability: chestXrayProb,
+                otherProbability: otherProb
+            };
+        } catch (error) {
+            console.error('❌ Error en clasificación de radiografía:', error.message);
             throw error;
         }
     }

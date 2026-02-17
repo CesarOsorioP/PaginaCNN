@@ -47,6 +47,33 @@ exports.analyzeImage = async (req, res) => {
 
         const startTime = Date.now();
 
+        // Pre-clasificación: verificar si es radiografía de tórax
+        let classificationResult = null;
+        try {
+            classificationResult = await onnxAnalyzer.classifyChestXray(imagePath);
+        } catch (classifierError) {
+            console.warn('⚠️ Error en pre-clasificación, continuando con el análisis:', classifierError.message);
+        }
+
+        if (classificationResult && !classificationResult.isChestXray) {
+            console.log(`❌ Imagen rechazada: no es radiografía de tórax (confianza: ${(classificationResult.otherProbability * 100).toFixed(2)}%)`);
+            // Intentar eliminar archivo subido de forma asíncrona
+            try {
+                await fs.promises.unlink(imagePath);
+            } catch (unlinkErr) {
+                console.warn(`⚠️ No se pudo eliminar el archivo rechazado (se limpiará después): ${unlinkErr.message}`);
+            }
+            return res.status(400).json({
+                message: 'La imagen proporcionada no parece ser una radiografía de tórax. Por favor, sube una radiografía válida.',
+                isNotXray: true,
+                confidence: classificationResult.otherProbability
+            });
+        }
+
+        if (classificationResult) {
+            console.log(`✅ Imagen validada como radiografía de tórax (confianza: ${(classificationResult.chestXrayProbability * 100).toFixed(2)}%)`);
+        }
+
         // Analizar imagen con modelo ONNX
         try {
             predictionResult = await onnxAnalyzer.predict(imagePath, modelType);

@@ -28,6 +28,82 @@ const ANALYSIS_STEPS = [
     { id: 'complete', label: 'Finalizando', icon: 'check_circle', threshold: 100 }
 ];
 
+const ALERT_PRESETS = {
+    error: {
+        icon: 'error',
+        borderColor: 'border-red-300 dark:border-red-700',
+        bgColor: 'bg-red-50 dark:bg-red-900/20',
+        iconBg: 'bg-red-100 dark:bg-red-900/40',
+        iconColor: 'text-red-600 dark:text-red-400',
+        titleColor: 'text-red-900 dark:text-red-200',
+        textColor: 'text-red-700 dark:text-red-300',
+        btnBg: 'bg-red-600 hover:bg-red-700 dark:bg-red-500 dark:hover:bg-red-600',
+    },
+    warning: {
+        icon: 'warning',
+        borderColor: 'border-amber-300 dark:border-amber-700',
+        bgColor: 'bg-amber-50 dark:bg-amber-900/20',
+        iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+        titleColor: 'text-amber-900 dark:text-amber-200',
+        textColor: 'text-amber-700 dark:text-amber-300',
+        btnBg: 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600',
+    },
+};
+
+function AlertModal({ alert, onClose }) {
+    const timerRef = useRef(null);
+
+    useEffect(() => {
+        if (alert?.autoDismiss) {
+            timerRef.current = setTimeout(onClose, 5000);
+            return () => clearTimeout(timerRef.current);
+        }
+    }, [alert, onClose]);
+
+    if (!alert) return null;
+
+    const preset = ALERT_PRESETS[alert.type] || ALERT_PRESETS.info;
+
+    return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+            <div className="absolute inset-0 bg-black/40 dark:bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]" />
+            <div
+                className={`relative w-full max-w-md rounded-2xl border ${preset.borderColor} ${preset.bgColor} shadow-2xl animate-[scaleIn_0.25s_ease-out] overflow-hidden`}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="p-6">
+                    <div className="flex items-start gap-4">
+                        <div className={`w-12 h-12 rounded-full ${preset.iconBg} flex items-center justify-center flex-shrink-0`}>
+                            <span className={`material-symbols-outlined text-2xl ${preset.iconColor}`}>
+                                {alert.icon || preset.icon}
+                            </span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h3 className={`text-lg font-bold ${preset.titleColor} mb-1`}>{alert.title}</h3>
+                            <p className={`text-sm ${preset.textColor} leading-relaxed`}>{alert.message}</p>
+                        </div>
+                        <button
+                            onClick={onClose}
+                            className="flex-shrink-0 text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+                        >
+                            <span className="material-symbols-outlined text-xl">close</span>
+                        </button>
+                    </div>
+                </div>
+                <div className="px-6 pb-5 flex justify-end">
+                    <button
+                        onClick={onClose}
+                        className={`px-5 py-2 rounded-lg text-sm font-medium text-white ${preset.btnBg} transition-colors`}
+                    >
+                        Entendido
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function Upload() {
     const navigate = useNavigate();
     const [selectedFile, setSelectedFile] = useState(null);
@@ -41,6 +117,11 @@ export default function Upload() {
     const [modelsLoading, setModelsLoading] = useState(true);
     const [modelError, setModelError] = useState('');
     const [selectedModel, setSelectedModel] = useState('efficientnet');
+    const [alertInfo, setAlertInfo] = useState(null);
+
+    const showAlert = (type, title, message, opts = {}) => {
+        setAlertInfo({ type, title, message, ...opts });
+    };
 
     useEffect(() => {
         let isMounted = true;
@@ -110,7 +191,7 @@ export default function Upload() {
     const handleFileSelect = (file) => {
         if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
             if (file.size > 10 * 1024 * 1024) {
-                alert('El archivo es demasiado grande. Máximo 10MB.');
+                showAlert('warning', 'Archivo muy grande', 'El archivo supera el límite de 10 MB. Por favor, selecciona una imagen más liviana.', { icon: 'upload_file' });
                 return;
             }
             setSelectedFile(file);
@@ -118,7 +199,7 @@ export default function Upload() {
             reader.onloadend = () => setPreview(reader.result);
             reader.readAsDataURL(file);
         } else {
-            alert('Por favor selecciona una imagen JPG o PNG válida.');
+            showAlert('warning', 'Formato no soportado', 'Por favor selecciona una imagen en formato JPG o PNG válida.', { icon: 'image_not_supported' });
         }
     };
 
@@ -130,14 +211,7 @@ export default function Upload() {
     };
 
     const handleAnalyze = async () => {
-        if (!selectedFile) {
-            alert('Por favor carga una imagen primero.');
-            return;
-        }
-        if (!selectedModel) {
-            alert('Selecciona un modelo de IA antes de analizar.');
-            return;
-        }
+        if (!selectedFile || !selectedModel) return;
 
         setAnalyzing(true);
         const formData = new FormData();
@@ -164,7 +238,21 @@ export default function Upload() {
             navigate(`/report/${savedStudy._id}`);
         } catch (error) {
             console.error('Error analyzing image:', error);
-            alert('Error al analizar la imagen');
+            if (error.response?.data?.isNotXray) {
+                showAlert(
+                    'error',
+                    'No es una radiografía de tórax',
+                    'La imagen proporcionada no fue reconocida como una radiografía de tórax válida. Asegúrate de subir una radiografía frontal (AP/PA) de tórax para poder realizar el análisis.',
+                    { icon: 'radiology' }
+                );
+            } else {
+                showAlert(
+                    'error',
+                    'Error en el análisis',
+                    error.response?.data?.message || 'Ocurrió un error inesperado al analizar la imagen. Por favor, intenta de nuevo.',
+                    { icon: 'error' }
+                );
+            }
         } finally {
             setAnalyzing(false);
         }
@@ -193,6 +281,7 @@ export default function Upload() {
 
         return (
             <div className="flex flex-col items-center justify-center min-h-[80vh] text-slate-900 dark:text-white bg-slate-50 dark:bg-slate-900">
+                <AlertModal alert={alertInfo} onClose={() => setAlertInfo(null)} />
                 <div className="max-w-2xl w-full px-6">
                     {/* Spinner y título principal */}
                     <div className="flex flex-col items-center mb-8">
@@ -307,6 +396,7 @@ export default function Upload() {
 
     return (
         <div className="">
+            <AlertModal alert={alertInfo} onClose={() => setAlertInfo(null)} />
             <NavigationButtons />
             {/* Breadcrumb */}
             <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-6">

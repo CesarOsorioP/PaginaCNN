@@ -3,7 +3,6 @@ import { useParams, Link } from 'react-router-dom';
 import api from '../../api/axios';
 import NavigationButtons from '../../components/NavigationButtons';
 import HelperTooltip from '../../components/HelperTooltip';
-import { useTheme } from '../../context/ThemeContext';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -34,7 +33,6 @@ const getModelMeta = (modelType) => {
 
 export default function Report() {
     const { id } = useParams();
-    const { isDark } = useTheme();
     const [study, setStudy] = useState(null);
     const [loading, setLoading] = useState(true);
     const [viewMode, setViewMode] = useState('overlay'); // 'original', 'heatmap', 'overlay', 'contour'
@@ -128,7 +126,7 @@ export default function Report() {
 
     const getRecommendations = (condition) => {
         const conditionLower = condition?.toLowerCase() || '';
-        
+
         if (conditionLower.includes('neumonía')) {
             return [
                 'Correlación clínica sugerida.',
@@ -232,12 +230,12 @@ export default function Report() {
         // --- Header ---
         doc.setFillColor(8, 145, 178); // Cyan-600
         doc.rect(0, 0, pageWidth, 40, 'F');
-        
+
         doc.setTextColor(255, 255, 255);
         doc.setFontSize(22);
         doc.setFont('helvetica', 'bold');
         doc.text('Reporte de Análisis IA', margin, 20);
-        
+
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
         doc.text(`ID Estudio: #${id.slice(-6).toUpperCase()}`, margin, 30);
@@ -255,7 +253,7 @@ export default function Report() {
         doc.setFontSize(18);
         doc.setTextColor(diagnosisInfo.condition.toLowerCase().includes('normal') ? 'green' : 'red');
         doc.text(diagnosisInfo.condition, margin, yPos);
-        
+
         doc.setFontSize(12);
         doc.setTextColor(100, 100, 100);
         doc.text(`Confianza: ${(diagnosisInfo.probability * 100).toFixed(1)}%`, pageWidth - margin - 50, yPos);
@@ -285,10 +283,10 @@ export default function Report() {
                 const imgRatio = img.width / img.height;
                 const imgHeight = 80;
                 const imgWidth = imgHeight * imgRatio;
-                
+
                 // Centrar imagen
                 const xPos = (pageWidth - imgWidth) / 2;
-                
+
                 // Si la imagen se sale, agregar nueva página
                 if (yPos + imgHeight > 280) {
                     doc.addPage();
@@ -329,7 +327,7 @@ export default function Report() {
             styles: { fontSize: 10 },
             margin: { left: margin, right: margin }
         });
-        
+
         yPos = doc.lastAutoTable.finalY + 15;
 
         // --- Recomendaciones ---
@@ -387,7 +385,7 @@ export default function Report() {
                     <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-slate-900 dark:text-white">Reporte de Análisis IA</h1>
                     <p className="text-slate-600 dark:text-slate-400 text-sm">Inteligencia Artificial Explicable - Visualización de Atención</p>
                 </div>
-                <button 
+                <button
                     onClick={handleDownloadPDF}
                     className="bg-cyan-600 hover:bg-cyan-700 dark:bg-cyan-500 dark:hover:bg-cyan-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors shadow-md"
                 >
@@ -414,18 +412,17 @@ export default function Report() {
                                 </div>
                             )}
                         </div>
-                        
+
                         {/* Mode Buttons */}
                         <div className="flex gap-2 mb-4 flex-wrap">
                             {['original', 'heatmap', 'overlay', 'contour'].map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => setViewMode(mode)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                        viewMode === mode
+                                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === mode
                                             ? 'bg-cyan-600 dark:bg-cyan-500 text-white'
                                             : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
-                                    }`}
+                                        }`}
                                 >
                                     {mode === 'original' && 'Original'}
                                     {mode === 'heatmap' && 'Mapa de Calor'}
@@ -448,7 +445,7 @@ export default function Report() {
                                     }}
                                 />
                             )}
-                            
+
                             {viewMode === 'heatmap' && study.heatmap && (
                                 <img
                                     src={`data:image/png;base64,${study.heatmap}`}
@@ -461,7 +458,7 @@ export default function Report() {
                                     }}
                                 />
                             )}
-                            
+
                             {viewMode === 'overlay' && study.imageUrl && (
                                 <div className="relative w-full h-full">
                                     <img
@@ -475,10 +472,10 @@ export default function Report() {
                                                 const img = e.target;
                                                 canvas.width = img.naturalWidth || img.width || 400;
                                                 canvas.height = img.naturalHeight || img.height || 400;
-                                                
+
                                                 // Dibujar imagen base
                                                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                                                
+
                                                 // Dibujar heatmap encima si existe
                                                 if (study.heatmap) {
                                                     const heatmapImg = new Image();
@@ -506,7 +503,7 @@ export default function Report() {
                                     )}
                                 </div>
                             )}
-                            
+
                             {viewMode === 'contour' && study.imageUrl && (
                                 <div className="relative w-full h-full">
                                     <img
