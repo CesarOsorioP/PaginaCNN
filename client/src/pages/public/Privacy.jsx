@@ -14,7 +14,7 @@ export default function Privacy() {
             <p className="mb-4">Recopilamos información necesaria para proporcionar nuestros servicios de análisis de radiografías, incluyendo imágenes médicas anonimizadas y datos de cuenta de usuario.</p>
 
             <h3 className="text-xl font-bold mb-2">2. Uso de la Información</h3>
-            <p className="mb-4">Las imágenes subidas son procesadas automáticamente por nuestros algoritmos y no son almacenadas permanentemente a menos que el usuario opte explícitamente por guardarlas en su historial.</p>
+            <p className="mb-4">Las imágenes subidas son procesadas automáticamente por nuestros algoritmos y son almacenadas permanentemente con la posibilidad de que el usuario opte explícitamente por eliminarlas de su historial.</p>
 
             <h3 className="text-xl font-bold mb-2">3. Seguridad</h3>
             <p className="mb-4">Implementamos medidas de seguridad, incluyendo encriptación en tránsito y en reposo, para proteger contra el acceso no autorizado.</p>

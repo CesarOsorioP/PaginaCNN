@@ -7,15 +7,14 @@ export default function FadeInWhenVisible({ children, delay = '0s', className = 
   useEffect(() => {
     const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        // Si ya es visible, no hacemos nada para evitar reinicios
         if (entry.isIntersecting) {
           setVisible(true);
-          observer.unobserve(entry.target); // Dejar de observar inmediatamente
+          observer.unobserve(entry.target);
         }
       });
     }, {
-      threshold: threshold, // Umbral configurable
-      rootMargin: '0px 0px -50px 0px' // Margen para disparar un poco antes
+      threshold: threshold,
+      rootMargin: '0px 0px -50px 0px'
     });
 
     const { current } = domRef;
@@ -33,10 +32,8 @@ export default function FadeInWhenVisible({ children, delay = '0s', className = 
   return (
     <div
       ref={domRef}
-      // Usamos clases condicionales más limpias. Si es visible, aplica la animación.
-      // Si no, mantiene opacidad 0 y desplazamiento.
-      className={`${className} ${isVisible ? 'animate-fade-in-up' : 'opacity-0 translate-y-8'}`}
-      style={{ animationDelay: delay }}
+      className={`${className} transition-all duration-1000 ease-out ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+      style={{ transitionDelay: delay }}
     >
       {children}
     </div>
