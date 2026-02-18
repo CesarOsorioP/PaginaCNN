@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../../api/axios';
 import NavigationButtons from '../../components/NavigationButtons';
@@ -35,8 +35,48 @@ export default function Report() {
     const { id } = useParams();
     const [study, setStudy] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [viewMode, setViewMode] = useState('overlay'); // 'original', 'heatmap', 'overlay', 'contour'
-    const overlayCanvasRef = useRef(null);
+    const [viewMode, setViewMode] = useState('overlay'); // 'original', 'heatmap', 'overlay', 'grid'
+    const [heatmapOpacity, setHeatmapOpacity] = useState(50); // 0-100%
+    const [gridData, setGridData] = useState(null);
+    const gridCanvasRef = useRef(null);
+
+    const GRID_SIZE = 8; // 8×8 grid
+
+    // Compute grid intensity data from the heatmap alpha channel
+    const computeGridData = useCallback(() => {
+        if (!study?.heatmap) return;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const img = new Image();
+        img.onload = () => {
+            canvas.width = img.width;
+            canvas.height = img.height;
+            ctx.drawImage(img, 0, 0);
+            const cellW = Math.floor(img.width / GRID_SIZE);
+            const cellH = Math.floor(img.height / GRID_SIZE);
+            const cells = [];
+            for (let row = 0; row < GRID_SIZE; row++) {
+                for (let col = 0; col < GRID_SIZE; col++) {
+                    const data = ctx.getImageData(col * cellW, row * cellH, cellW, cellH).data;
+                    let sum = 0;
+                    let count = 0;
+                    // Sample alpha channel (index 3) which carries Grad-CAM intensity
+                    for (let i = 3; i < data.length; i += 4) {
+                        sum += data[i];
+                        count++;
+                    }
+                    const avgAlpha = count > 0 ? sum / count / 200 : 0; // max alpha was 200
+                    cells.push({ row, col, intensity: Math.min(avgAlpha, 1) });
+                }
+            }
+            setGridData(cells);
+        };
+        img.src = `data:image/png;base64,${study.heatmap}`;
+    }, [study?.heatmap]);
+
+    useEffect(() => {
+        computeGridData();
+    }, [computeGridData]);
 
     useEffect(() => {
         const fetchStudy = async () => {
@@ -224,154 +264,486 @@ export default function Report() {
     const handleDownloadPDF = async () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
-        const margin = 20;
-        let yPos = 20;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const margin = 15;
+        const contentWidth = pageWidth - margin * 2;
+        let yPos = 0;
 
-        // --- Header ---
-        doc.setFillColor(8, 145, 178); // Cyan-600
-        doc.rect(0, 0, pageWidth, 40, 'F');
+        // ═══════════════════════════════════════════════════════
+        // HELPER: add page footer
+        // ═══════════════════════════════════════════════════════
+        const addFooter = (pageNum, totalPages) => {
+            doc.setDrawColor(200, 200, 200);
+            doc.line(margin, pageHeight - 18, pageWidth - margin, pageHeight - 18);
+            doc.setFontSize(7);
+            doc.setTextColor(140, 140, 140);
+            doc.text(
+                `Reporte EXAI | Estudio #${id.slice(-6).toUpperCase()} | Pagina ${pageNum} de ${totalPages}`,
+                pageWidth / 2, pageHeight - 12, { align: 'center' }
+            );
+            doc.text(
+                `Generado: ${new Date().toLocaleString('es-ES')}`,
+                pageWidth / 2, pageHeight - 8, { align: 'center' }
+            );
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER: load image as base64
+        // ═══════════════════════════════════════════════════════
+        const loadImageAsDataURL = (src) => {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = img.width;
+                    c.height = img.height;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    resolve(c.toDataURL('image/jpeg', 0.85));
+                };
+                img.onerror = () => resolve(null);
+                img.src = src;
+            });
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER: create overlay composite on canvas
+        // ═══════════════════════════════════════════════════════
+        const createOverlayImage = (origSrc, heatmapB64) => {
+            return new Promise((resolve) => {
+                const origImg = new Image();
+                origImg.crossOrigin = 'anonymous';
+                origImg.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = origImg.width;
+                    c.height = origImg.height;
+                    const ctx = c.getContext('2d');
+                    ctx.drawImage(origImg, 0, 0);
+                    if (heatmapB64) {
+                        const hmImg = new Image();
+                        hmImg.onload = () => {
+                            ctx.globalAlpha = 0.55;
+                            ctx.drawImage(hmImg, 0, 0, c.width, c.height);
+                            ctx.globalAlpha = 1.0;
+                            resolve(c.toDataURL('image/jpeg', 0.85));
+                        };
+                        hmImg.onerror = () => resolve(c.toDataURL('image/jpeg', 0.85));
+                        hmImg.src = `data:image/png;base64,${heatmapB64}`;
+                    } else {
+                        resolve(c.toDataURL('image/jpeg', 0.85));
+                    }
+                };
+                origImg.onerror = () => resolve(null);
+                origImg.src = origSrc;
+            });
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // HELPER: create grid visualization on canvas
+        // ═══════════════════════════════════════════════════════
+        const createGridImage = (origSrc, cells, gridSize) => {
+            return new Promise((resolve) => {
+                const origImg = new Image();
+                origImg.crossOrigin = 'anonymous';
+                origImg.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width = origImg.width;
+                    c.height = origImg.height;
+                    const ctx = c.getContext('2d');
+                    // Darken original
+                    ctx.drawImage(origImg, 0, 0);
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                    ctx.fillRect(0, 0, c.width, c.height);
+                    const cellW = c.width / gridSize;
+                    const cellH = c.height / gridSize;
+                    if (cells) {
+                        cells.forEach(cell => {
+                            const r = Math.min(255, Math.round(cell.intensity * 2 * 255));
+                            const g = Math.min(255, Math.round((cell.intensity < 0.5 ? cell.intensity * 2 : (1 - cell.intensity) * 2) * 255));
+                            const b = Math.round(Math.max(0, (1 - cell.intensity * 2)) * 255);
+                            const alpha = cell.intensity > 0.05 ? 0.65 : 0.12;
+                            ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
+                            const x = cell.col * cellW + 1;
+                            const y = cell.row * cellH + 1;
+                            ctx.fillRect(x, y, cellW - 2, cellH - 2);
+                            // Label
+                            if (cell.intensity > 0.12) {
+                                const pct = Math.round(cell.intensity * 100);
+                                ctx.fillStyle = 'white';
+                                ctx.font = `bold ${Math.round(cellW * 0.22)}px Arial`;
+                                ctx.textAlign = 'center';
+                                ctx.textBaseline = 'middle';
+                                ctx.shadowColor = 'black';
+                                ctx.shadowBlur = 3;
+                                ctx.fillText(`${pct}%`, x + cellW / 2, y + cellH / 2);
+                                ctx.shadowBlur = 0;
+                            }
+                        });
+                    }
+                    // Grid lines
+                    ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+                    ctx.lineWidth = 1;
+                    for (let i = 0; i <= gridSize; i++) {
+                        ctx.beginPath(); ctx.moveTo(i * cellW, 0); ctx.lineTo(i * cellW, c.height); ctx.stroke();
+                        ctx.beginPath(); ctx.moveTo(0, i * cellH); ctx.lineTo(c.width, i * cellH); ctx.stroke();
+                    }
+                    resolve(c.toDataURL('image/jpeg', 0.85));
+                };
+                origImg.onerror = () => resolve(null);
+                origImg.src = origSrc;
+            });
+        };
+
+        // ═══════════════════════════════════════════════════════
+        // PAGE 1: HEADER + DIAGNOSIS + IMAGES
+        // ═══════════════════════════════════════════════════════
+
+        // ---- Header band ----
+        doc.setFillColor(15, 23, 42); // Slate-900
+        doc.rect(0, 0, pageWidth, 42, 'F');
+        // Accent strip
+        doc.setFillColor(6, 182, 212); // Cyan-500
+        doc.rect(0, 42, pageWidth, 2.5, 'F');
 
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
+        doc.setFontSize(20);
         doc.setFont('helvetica', 'bold');
-        doc.text('Reporte de Análisis IA', margin, 20);
+        doc.text('Reporte de IA Explicable (EXAI)', margin, 16);
 
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text(`ID Estudio: #${id.slice(-6).toUpperCase()}`, margin, 30);
-        doc.text(`Fecha: ${new Date().toLocaleDateString('es-ES')}`, pageWidth - margin - 40, 30);
+        doc.setTextColor(148, 163, 184); // Slate-400
+        doc.text(`Estudio #${id.slice(-6).toUpperCase()}`, margin, 26);
 
-        yPos = 55;
+        const dateStr = study.createdAt
+            ? new Date(study.createdAt).toLocaleString('es-ES', { dateStyle: 'long', timeStyle: 'short' })
+            : new Date().toLocaleString('es-ES');
+        doc.text(`Fecha: ${dateStr}`, margin, 34);
 
-        // --- Diagnóstico Principal ---
-        doc.setTextColor(33, 33, 33);
-        doc.setFontSize(14);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Diagnóstico Principal', margin, yPos);
-        yPos += 10;
+        const modelMeta = getModelMeta(study.modelType);
+        doc.text(`Modelo: ${modelMeta.label}`, pageWidth - margin, 26, { align: 'right' });
+        doc.text(`Procesamiento: ${study.processingTime ? (study.processingTime / 1000).toFixed(1) + 's' : '-'}`, pageWidth - margin, 34, { align: 'right' });
 
-        doc.setFontSize(18);
-        doc.setTextColor(diagnosisInfo.condition.toLowerCase().includes('normal') ? 'green' : 'red');
-        doc.text(diagnosisInfo.condition, margin, yPos);
+        yPos = 52;
 
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text(`Confianza: ${(diagnosisInfo.probability * 100).toFixed(1)}%`, pageWidth - margin - 50, yPos);
-        yPos += 10;
+        // ---- Primary Diagnosis ----
+        const isNormal = diagnosisInfo.condition.toLowerCase().includes('normal');
+        const diagColor = isNormal ? [16, 185, 129] : [239, 68, 68]; // Green/Red
 
-        doc.setFontSize(11);
-        doc.setTextColor(60, 60, 60);
+        doc.setFillColor(248, 250, 252); // Slate-50
+        doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, 'F');
+        doc.setDrawColor(...diagColor);
+        doc.roundedRect(margin, yPos, contentWidth, 30, 3, 3, 'S');
+
+        // Colored sidebar
+        doc.setFillColor(...diagColor);
+        doc.rect(margin, yPos, 4, 30, 'F');
+
+        doc.setTextColor(50, 50, 50);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
-        // Dividir texto largo en líneas
-        const descLines = doc.splitTextToSize(diagnosisInfo.description, pageWidth - (margin * 2));
-        doc.text(descLines, margin, yPos);
-        yPos += (descLines.length * 6) + 10;
+        doc.text('DIAGNOSTICO PRINCIPAL', margin + 10, yPos + 7);
 
-        // --- Imagen Radiografía ---
-        if (study.imageUrl) {
-            try {
-                const imgUrl = getImageUrl(study.imageUrl);
-                // Crear una imagen temporal para asegurar que se carga
-                const img = new Image();
-                img.src = imgUrl;
-                await new Promise((resolve) => {
-                    img.onload = resolve;
-                    img.onerror = resolve; // Continuar aunque falle
-                });
-
-                // Calcular dimensiones manteniendo ratio, max altura 80mm
-                const imgRatio = img.width / img.height;
-                const imgHeight = 80;
-                const imgWidth = imgHeight * imgRatio;
-
-                // Centrar imagen
-                const xPos = (pageWidth - imgWidth) / 2;
-
-                // Si la imagen se sale, agregar nueva página
-                if (yPos + imgHeight > 280) {
-                    doc.addPage();
-                    yPos = 20;
-                }
-
-                doc.addImage(img, 'JPEG', xPos, yPos, imgWidth, imgHeight);
-                yPos += imgHeight + 10;
-            } catch (error) {
-                console.error("Error adding image to PDF", error);
-            }
-        }
-
-        // --- Tabla de Probabilidades ---
-        if (yPos + 40 > 280) {
-            doc.addPage();
-            yPos = 20;
-        }
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(...diagColor);
+        doc.text(diagnosisInfo.condition, margin + 10, yPos + 17);
 
         doc.setFontSize(14);
+        doc.setTextColor(50, 50, 50);
+        doc.text(`${(diagnosisInfo.probability * 100).toFixed(1)}%`, pageWidth - margin - 10, yPos + 17, { align: 'right' });
+
+        doc.setFontSize(8);
+        doc.setTextColor(100, 100, 100);
+        doc.text('Confianza', pageWidth - margin - 10, yPos + 24, { align: 'right' });
+
+        yPos += 36;
+
+        // Description
+        doc.setFontSize(9);
+        doc.setTextColor(70, 70, 70);
+        doc.setFont('helvetica', 'normal');
+        const descLines = doc.splitTextToSize(diagnosisInfo.description, contentWidth);
+        doc.text(descLines, margin, yPos);
+        yPos += descLines.length * 4 + 8;
+
+        // ---- Side-by-side images: Original + Overlay ----
+        const imgSrc = getImageUrl(study.imageUrl);
+        let originalDataUrl = null;
+        let overlayDataUrl = null;
+        let gridDataUrl = null;
+
+        if (imgSrc) {
+            [originalDataUrl, overlayDataUrl, gridDataUrl] = await Promise.all([
+                loadImageAsDataURL(imgSrc),
+                createOverlayImage(imgSrc, study.heatmap),
+                createGridImage(imgSrc, gridData, GRID_SIZE),
+            ]);
+        }
+
+        // Section title
+        doc.setFontSize(12);
         doc.setTextColor(33, 33, 33);
         doc.setFont('helvetica', 'bold');
-        doc.text('Análisis Detallado', margin, yPos);
-        yPos += 5;
+        doc.text('Visualizacion de Rayos X', margin, yPos);
+        yPos += 6;
 
-        const tableData = study.results.map(r => [
-            r.condition,
-            `${(r.probability * 100).toFixed(1)}%`,
-            r.probability > 0.5 ? 'Alta' : (r.probability > 0.1 ? 'Moderada' : 'Baja')
-        ]);
+        const imgW = (contentWidth - 6) / 2;
+        const imgH = imgW * 1.1;
 
-        autoTable(doc, {
-            startY: yPos,
-            head: [['Condición', 'Probabilidad', 'Nivel de Riesgo']],
-            body: tableData,
-            theme: 'grid',
-            headStyles: { fillColor: [8, 145, 178] },
-            styles: { fontSize: 10 },
-            margin: { left: margin, right: margin }
+        if (originalDataUrl) {
+            doc.addImage(originalDataUrl, 'JPEG', margin, yPos, imgW, imgH);
+            doc.setFontSize(7);
+            doc.setTextColor(100, 100, 100);
+            doc.text('(A) Radiografia Original', margin + imgW / 2, yPos + imgH + 4, { align: 'center' });
+        }
+
+        if (overlayDataUrl) {
+            doc.addImage(overlayDataUrl, 'JPEG', margin + imgW + 6, yPos, imgW, imgH);
+            doc.setFontSize(7);
+            doc.setTextColor(100, 100, 100);
+            doc.text('(B) Superposicion Grad-CAM', margin + imgW + 6 + imgW / 2, yPos + imgH + 4, { align: 'center' });
+        }
+
+        yPos += imgH + 10;
+
+        // ═══════════════════════════════════════════════════════
+        // PAGE 2: GRID + COLOR LEGEND + TOP 3 + TABLE
+        // ═══════════════════════════════════════════════════════
+        doc.addPage();
+        yPos = 15;
+
+        // ---- Grid visualization ----
+        doc.setFontSize(12);
+        doc.setTextColor(33, 33, 33);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Cuadricula de Activacion (8x8)', margin, yPos);
+        yPos += 6;
+
+        if (gridDataUrl) {
+            const gridImgW = contentWidth * 0.55;
+            const gridImgH = gridImgW;
+            const gridX = (pageWidth - gridImgW) / 2;
+            doc.addImage(gridDataUrl, 'JPEG', gridX, yPos, gridImgW, gridImgH);
+
+            doc.setFontSize(7);
+            doc.setTextColor(100, 100, 100);
+            doc.text('(C) Cada celda muestra el % de activacion del modelo en esa region', pageWidth / 2, yPos + gridImgH + 4, { align: 'center' });
+            yPos += gridImgH + 12;
+        } else {
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            doc.text('Cuadrícula no disponible', margin, yPos + 10);
+            yPos += 18;
+        }
+
+        // ---- Color Legend ----
+        doc.setFontSize(11);
+        doc.setTextColor(33, 33, 33);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Leyenda de Colores - Mapa de Calor Grad-CAM', margin, yPos);
+        yPos += 7;
+
+        doc.setFillColor(245, 245, 245);
+        doc.roundedRect(margin, yPos, contentWidth, 28, 2, 2, 'F');
+
+        // Draw gradient bar
+        const barX = margin + 8;
+        const barW = contentWidth - 16;
+        const barY = yPos + 5;
+        const barH = 8;
+        const steps = 60;
+        for (let i = 0; i < steps; i++) {
+            const t = i / steps;
+            // JET-like: blue → cyan → green → yellow → red
+            let r, g, b;
+            if (t < 0.25) { r = 0; g = Math.round(t * 4 * 255); b = 255; }
+            else if (t < 0.5) { r = 0; g = 255; b = Math.round((1 - (t - 0.25) * 4) * 255); }
+            else if (t < 0.75) { r = Math.round((t - 0.5) * 4 * 255); g = 255; b = 0; }
+            else { r = 255; g = Math.round((1 - (t - 0.75) * 4) * 255); b = 0; }
+            doc.setFillColor(r, g, b);
+            doc.rect(barX + (barW * i / steps), barY, barW / steps + 0.5, barH, 'F');
+        }
+
+        doc.setFontSize(7);
+        doc.setTextColor(80, 80, 80);
+        doc.text('Baja activacion', barX, barY + barH + 5);
+        doc.text('Alta activacion', barX + barW, barY + barH + 5, { align: 'right' });
+        doc.text('Moderada', barX + barW / 2, barY + barH + 5, { align: 'center' });
+
+        yPos += 34;
+
+        doc.setFontSize(8);
+        doc.setTextColor(80, 80, 80);
+        doc.setFont('helvetica', 'normal');
+        const legendText = 'Las zonas en rojo indican alta activacion del modelo - son las regiones de la imagen que mas influyeron en la prediccion. Las zonas en azul indican baja activacion (poca influencia). Esto NO indica necesariamente la ubicacion exacta de la patologia, sino donde "enfoco su atencion" la red neuronal.';
+        const legendLines = doc.splitTextToSize(legendText, contentWidth);
+        doc.text(legendLines, margin, yPos);
+        yPos += legendLines.length * 4 + 10;
+
+        // ---- Top 3 Predictions ----
+        doc.setFontSize(12);
+        doc.setTextColor(33, 33, 33);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Top 3 Predicciones', margin, yPos);
+        yPos += 8;
+
+        const top3 = study.results.slice(0, 3);
+        const rankColors = [[6, 182, 212], [56, 189, 248], [148, 163, 184]];
+
+        top3.forEach((result, idx) => {
+            const prob = result.probability * 100;
+            const color = rankColors[idx];
+            const rowY = yPos;
+
+            // Rank badge
+            doc.setFillColor(...color);
+            doc.circle(margin + 5, rowY + 4, 4, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(8);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${idx + 1}`, margin + 5, rowY + 5, { align: 'center' });
+
+            // Condition name
+            doc.setTextColor(33, 33, 33);
+            doc.setFontSize(10);
+            const condName = result.condition || result.conditionEn || '-';
+            doc.text(condName, margin + 14, rowY + 5);
+
+            // Bar background
+            const pbX = margin + 65;
+            const pbW = contentWidth - 85;
+            doc.setFillColor(230, 230, 230);
+            doc.roundedRect(pbX, rowY, pbW, 8, 2, 2, 'F');
+
+            // Filled bar
+            const filledW = Math.max(pbW * result.probability, 3);
+            doc.setFillColor(...color);
+            doc.roundedRect(pbX, rowY, filledW, 8, 2, 2, 'F');
+
+            // Percentage
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${prob.toFixed(1)}%`, pageWidth - margin, rowY + 5.5, { align: 'right' });
+
+            yPos += 13;
         });
 
-        yPos = doc.lastAutoTable.finalY + 15;
+        yPos += 6;
 
-        // --- Recomendaciones ---
-        // Verificar espacio para recomendaciones
-        if (yPos + 40 > 280) {
-            doc.addPage();
-            yPos = 20;
+        // ---- Remaining Predictions Table ----
+        const remaining = study.results.slice(3);
+        if (remaining.length > 0) {
+            doc.setFontSize(10);
+            doc.setTextColor(33, 33, 33);
+            doc.setFont('helvetica', 'bold');
+            doc.text('Otras Condiciones Evaluadas', margin, yPos);
+            yPos += 4;
+
+            const tableRows = remaining.map((r, idx) => [
+                `${idx + 4}`,
+                r.condition || r.conditionEn || '-',
+                `${(r.probability * 100).toFixed(2)}%`,
+                r.probability > 0.15 ? 'MODERADA' : 'Baja'
+            ]);
+
+            autoTable(doc, {
+                startY: yPos,
+                head: [['#', 'Condicion', 'Probabilidad', 'Nivel']],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { fillColor: [100, 116, 139], textColor: [255, 255, 255], fontSize: 8 },
+                bodyStyles: { fontSize: 8 },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    2: { halign: 'right', cellWidth: 26 },
+                    3: { halign: 'center', cellWidth: 24 },
+                },
+                margin: { left: margin, right: margin },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+            });
+
+            yPos = doc.lastAutoTable.finalY + 10;
         }
 
-        doc.setFontSize(14);
+        // ---- Clinical Recommendations ----
+        if (yPos + 40 > pageHeight - 30) { doc.addPage(); yPos = 15; }
+
+        doc.setFontSize(11);
         doc.setTextColor(33, 33, 33);
         doc.setFont('helvetica', 'bold');
         doc.text('Recomendaciones Clínicas', margin, yPos);
-        yPos += 10;
+        yPos += 7;
 
-        doc.setFontSize(10);
+        doc.setFontSize(9);
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(60, 60, 60);
 
         recommendations.forEach(rec => {
-            doc.text(`• ${rec}`, margin + 5, yPos);
-            yPos += 7;
+            if (yPos + 6 > pageHeight - 30) { doc.addPage(); yPos = 15; }
+            const recLines = doc.splitTextToSize(`- ${rec}`, contentWidth - 5);
+            doc.text(recLines, margin + 3, yPos);
+            yPos += recLines.length * 4 + 3;
         });
 
-        // --- Footer ---
-        const pageCount = doc.internal.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
+        yPos += 6;
+
+        // ═══════════════════════════════════════════════════════
+        // DISCLAIMER — always at the end
+        // ═══════════════════════════════════════════════════════
+        if (yPos + 38 > pageHeight - 25) { doc.addPage(); yPos = 15; }
+
+        doc.setFillColor(254, 243, 199); // Amber-100
+        doc.roundedRect(margin, yPos, contentWidth, 36, 3, 3, 'F');
+        doc.setDrawColor(217, 119, 6); // Amber-600
+        doc.roundedRect(margin, yPos, contentWidth, 36, 3, 3, 'S');
+
+        // Warning icon strip
+        doc.setFillColor(245, 158, 11); // Amber-500
+        doc.rect(margin, yPos, 4, 36, 'F');
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(146, 64, 14); // Amber-800
+        doc.text('(!) AVISO CLINICO - LIMITACION DE RESPONSABILIDAD', margin + 10, yPos + 7);
+
+        doc.setFontSize(7.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(120, 53, 15);
+        const disclaimerText = 'Este reporte ha sido generado automaticamente por un sistema de inteligencia artificial basado en redes neuronales convolucionales (DenseNet-121) y tecnicas de IA explicable (Grad-CAM). Los resultados son orientativos y NO constituyen un diagnostico medico definitivo. Toda interpretacion debe ser realizada por un profesional de la salud cualificado. No tome decisiones clinicas basandose exclusivamente en este analisis. Consulte siempre con un medico especialista.';
+        const disclaimerLines = doc.splitTextToSize(disclaimerText, contentWidth - 16);
+        doc.text(disclaimerLines, margin + 10, yPos + 13);
+
+        // ═══════════════════════════════════════════════════════
+        // ADD FOOTERS TO ALL PAGES
+        // ═══════════════════════════════════════════════════════
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
             doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(150, 150, 150);
-            doc.text(
-                `Generado automáticamente por NombrePagina AI - Página ${i} de ${pageCount}`,
-                pageWidth / 2,
-                doc.internal.pageSize.getHeight() - 10,
-                { align: 'center' }
-            );
+            addFooter(i, totalPages);
         }
 
-        doc.save(`reporte_medico_${id}.pdf`);
+        doc.save(`EXAI_Reporte_${id.slice(-6).toUpperCase()}_${new Date().toISOString().slice(0, 10)}.pdf`);
     };
 
     return (
         <div className="text-slate-900 dark:text-white bg-white dark:bg-slate-900 min-h-screen">
             <NavigationButtons />
+            {/* Clinical Disclaimer */}
+            <div className="mb-6 p-4 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20">
+                <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-amber-600 dark:text-amber-400 text-xl flex-shrink-0 mt-0.5">warning</span>
+                    <div>
+                        <p className="text-sm font-semibold text-amber-900 dark:text-amber-200 mb-1">Aviso clínico importante</p>
+                        <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">
+                            Este análisis es una <strong>herramienta de soporte</strong> basada en inteligencia artificial. <strong>No constituye un diagnóstico definitivo.</strong> Los resultados deben ser interpretados por un profesional de la salud cualificado. Consulte siempre con un especialista antes de tomar decisiones clínicas.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
             {/* Breadcrumb */}
             <div className="flex items-center text-sm text-slate-500 dark:text-slate-400 mb-6">
                 <Link to="/dashboard" className="hover:text-cyan-600 dark:hover:text-cyan-400 transition-colors">Dashboard</Link>
@@ -415,22 +787,38 @@ export default function Report() {
 
                         {/* Mode Buttons */}
                         <div className="flex gap-2 mb-4 flex-wrap">
-                            {['original', 'heatmap', 'overlay', 'contour'].map((mode) => (
+                            {['original', 'heatmap', 'overlay', 'grid'].map((mode) => (
                                 <button
                                     key={mode}
                                     onClick={() => setViewMode(mode)}
                                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${viewMode === mode
-                                            ? 'bg-cyan-600 dark:bg-cyan-500 text-white'
-                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                                        ? 'bg-cyan-600 dark:bg-cyan-500 text-white'
+                                        : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
                                         }`}
                                 >
                                     {mode === 'original' && 'Original'}
                                     {mode === 'heatmap' && 'Mapa de Calor'}
                                     {mode === 'overlay' && 'Superposición'}
-                                    {mode === 'contour' && 'Contornos'}
+                                    {mode === 'grid' && 'Cuadrícula'}
                                 </button>
                             ))}
                         </div>
+
+                        {/* Opacity Slider — visible when overlay or heatmap is selected */}
+                        {(viewMode === 'overlay' || viewMode === 'heatmap' || viewMode === 'grid') && study.heatmap && (
+                            <div className="flex items-center gap-3 mb-4 px-1">
+                                <span className="text-xs text-slate-500 dark:text-slate-400 whitespace-nowrap">Opacidad</span>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={heatmapOpacity}
+                                    onChange={(e) => setHeatmapOpacity(Number(e.target.value))}
+                                    className="flex-1 h-2 bg-slate-200 dark:bg-slate-700 rounded-full appearance-none cursor-pointer accent-cyan-500"
+                                />
+                                <span className="text-xs font-medium text-cyan-600 dark:text-cyan-400 w-10 text-right">{heatmapOpacity}%</span>
+                            </div>
+                        )}
 
                         {/* Image Display */}
                         <div className="relative bg-slate-100 dark:bg-black rounded-lg overflow-hidden border border-slate-200 dark:border-slate-700" style={{ minHeight: '400px' }}>
@@ -451,7 +839,7 @@ export default function Report() {
                                     src={`data:image/png;base64,${study.heatmap}`}
                                     alt="Mapa de Calor"
                                     className="w-full h-full object-contain"
-                                    style={{ filter: 'hue-rotate(180deg)' }}
+                                    style={{ opacity: heatmapOpacity / 100 }}
                                     onError={(e) => {
                                         console.error('Error loading heatmap');
                                         e.target.style.display = 'none';
@@ -465,58 +853,69 @@ export default function Report() {
                                         src={getImageUrl(study.imageUrl)}
                                         alt="Radiografía"
                                         className="w-full h-full object-contain"
-                                        onLoad={(e) => {
-                                            if (study.heatmap && overlayCanvasRef.current) {
-                                                const canvas = overlayCanvasRef.current;
-                                                const ctx = canvas.getContext('2d');
-                                                const img = e.target;
-                                                canvas.width = img.naturalWidth || img.width || 400;
-                                                canvas.height = img.naturalHeight || img.height || 400;
-
-                                                // Dibujar imagen base
-                                                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-                                                // Dibujar heatmap encima si existe
-                                                if (study.heatmap) {
-                                                    const heatmapImg = new Image();
-                                                    heatmapImg.onload = () => {
-                                                        ctx.globalAlpha = 0.5;
-                                                        ctx.drawImage(heatmapImg, 0, 0, canvas.width, canvas.height);
-                                                        ctx.globalAlpha = 1.0;
-                                                    };
-                                                    heatmapImg.onerror = () => {
-                                                        console.warn('Error loading heatmap for overlay');
-                                                    };
-                                                    heatmapImg.src = `data:image/png;base64,${study.heatmap}`;
-                                                }
-                                            }
-                                        }}
                                         onError={(e) => {
                                             console.error('Error loading image for overlay:', study.imageUrl);
                                         }}
                                     />
                                     {study.heatmap && (
-                                        <canvas
-                                            ref={overlayCanvasRef}
+                                        <img
+                                            src={`data:image/png;base64,${study.heatmap}`}
+                                            alt="Heatmap Overlay"
                                             className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                                            style={{ opacity: heatmapOpacity / 100 }}
+                                            onError={(e) => {
+                                                console.warn('Error loading heatmap overlay');
+                                                e.target.style.display = 'none';
+                                            }}
                                         />
                                     )}
                                 </div>
                             )}
 
-                            {viewMode === 'contour' && study.imageUrl && (
+                            {viewMode === 'grid' && study.imageUrl && (
                                 <div className="relative w-full h-full">
                                     <img
                                         src={getImageUrl(study.imageUrl)}
-                                        alt="Radiografía con Contornos"
+                                        alt="Radiografía"
                                         className="w-full h-full object-contain"
-                                        onError={(e) => {
-                                            console.error('Error loading image for contour:', study.imageUrl);
-                                        }}
+                                        style={{ filter: 'brightness(0.5)' }}
                                     />
-                                    {hasAnomaly && (
-                                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                            <div className="w-32 h-32 border-4 border-red-600 dark:border-red-500 rounded-full animate-pulse shadow-lg shadow-red-500/50"></div>
+                                    {gridData && (
+                                        <div
+                                            className="absolute inset-0 grid pointer-events-none"
+                                            style={{
+                                                gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
+                                                gridTemplateRows: `repeat(${GRID_SIZE}, 1fr)`,
+                                                padding: '2%',
+                                                opacity: heatmapOpacity / 100,
+                                            }}
+                                        >
+                                            {gridData.map((cell, i) => {
+                                                const pct = Math.round(cell.intensity * 100);
+                                                // Color ramp: low = blue/transparent, mid = yellow, high = red
+                                                const r = Math.min(255, Math.round(cell.intensity * 2 * 255));
+                                                const g = Math.min(255, Math.round((cell.intensity < 0.5 ? cell.intensity * 2 : (1 - cell.intensity) * 2) * 255));
+                                                const b = Math.round(Math.max(0, (1 - cell.intensity * 2)) * 255);
+                                                const bg = `rgba(${r}, ${g}, ${b}, ${cell.intensity > 0.05 ? 0.65 : 0.1})`;
+                                                return (
+                                                    <div
+                                                        key={i}
+                                                        className="border border-white/10 flex items-center justify-center pointer-events-auto cursor-default transition-all hover:scale-105 hover:z-10"
+                                                        style={{
+                                                            backgroundColor: bg,
+                                                            borderRadius: '4px',
+                                                            margin: '1px',
+                                                        }}
+                                                        title={`Celda (${cell.row + 1}, ${cell.col + 1}): ${pct}% activación`}
+                                                    >
+                                                        {cell.intensity > 0.15 && (
+                                                            <span className="text-white text-xs font-bold drop-shadow-md">
+                                                                {pct}%
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>
@@ -533,9 +932,9 @@ export default function Report() {
                         {/* View Label */}
                         <div className="mt-2 text-center text-sm text-slate-600 dark:text-slate-400">
                             {viewMode === 'original' && '(A) Radiografía Original'}
-                            {viewMode === 'heatmap' && '(B) Mapa de Atención (Heatmap)'}
+                            {viewMode === 'heatmap' && '(B) Mapa de Atención Grad-CAM'}
                             {viewMode === 'overlay' && `(C) Superposición - ${diagnosisInfo.condition} (${(diagnosisInfo.probability * 100).toFixed(1)}%)`}
-                            {viewMode === 'contour' && '(E) Vista de Contornos'}
+                            {viewMode === 'grid' && '(D) Cuadrícula de Activación — Intensidad por Región'}
                         </div>
                     </div>
 

@@ -1,0 +1,32 @@
+{
+    "class_order": [
+        "Atelectasis",
+        "COVID-19",
+        "Edema",
+        "Mass",
+        "Nodule",
+        "Normal",
+        "Pneumonia",
+        "Tuberculosis"
+    ],
+    "class_names_es": {
+        "Atelectasis": "Atelectasia",
+        "COVID-19": "COVID-19",
+        "Edema": "Edema",
+        "Mass": "Masa",
+        "Nodule": "Nódulo",
+        "Normal": "Normal",
+        "Pneumonia": "Neumonía",
+        "Tuberculosis": "Tuberculosis"
+    },
+    "class_descriptions_es": {
+        "Atelectasis": "Colapso parcial o completo de una parte del pulmón.",
+        "COVID-19": "Patrón radiológico sugestivo de infección por SARS-CoV-2.",
+        "Edema": "Acumulación de líquido en los espacios pulmonares.",
+        "Mass": "Masa pulmonar que requiere evaluación especializada.",
+        "Nodule": "Nódulo pulmonar detectado; considerar seguimiento.",
+        "Normal": "No se detectaron anomalías significativas.",
+        "Pneumonia": "Opacidad focal sugestiva de consolidación neumónica.",
+        "Tuberculosis": "Patrón radiológico sugestivo de tuberculosis pulmonar."
+    }
+}
