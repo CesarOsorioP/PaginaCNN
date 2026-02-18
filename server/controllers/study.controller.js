@@ -1,7 +1,11 @@
 const Study = require('../models/Study');
 const path = require('path');
 const fs = require('fs');
+const axios = require('axios');
+const FormData = require('form-data');
 const onnxAnalyzer = require('../utils/onnxAnalyzer');
+
+const PYTHON_EXAI_URL = process.env.PYTHON_EXAI_URL || 'http://localhost:8000';
 
 // @desc    Get available models
 // @route   GET /api/studies/models
@@ -78,7 +82,7 @@ exports.analyzeImage = async (req, res) => {
         try {
             predictionResult = await onnxAnalyzer.predict(imagePath, modelType);
             console.log(`✅ Predicción exitosa: ${predictionResult.predictedClass} (${(predictionResult.confidence * 100).toFixed(2)}%)`);
-            
+
             // Generar heatmap
             try {
                 const heatmapResult = await onnxAnalyzer.generateHeatmap(imagePath, predictionResult);
@@ -92,9 +96,9 @@ exports.analyzeImage = async (req, res) => {
             console.error('❌ Error en análisis del modelo:', modelError);
             console.error('Error message:', modelError.message);
             console.error('Stack trace:', modelError.stack);
-            
+
             // Si el error es que no existe el modelo, usar resultados mock
-            if (modelError.message.includes('not found') || 
+            if (modelError.message.includes('not found') ||
                 modelError.message.includes('Model file') ||
                 modelError.message.includes('ENOENT') ||
                 modelError.code === 'ENOENT') {
@@ -116,7 +120,7 @@ exports.analyzeImage = async (req, res) => {
                 };
             } else {
                 // Para otros errores, devolver error pero con información útil
-                return res.status(500).json({ 
+                return res.status(500).json({
                     message: 'Error al analizar la imagen con el modelo de IA',
                     error: process.env.NODE_ENV === 'development' ? modelError.message : 'Error interno del servidor',
                     details: process.env.NODE_ENV === 'development' ? {
@@ -129,7 +133,7 @@ exports.analyzeImage = async (req, res) => {
 
         // Asegurar que tenemos resultados
         if (!predictionResult || !predictionResult.results) {
-            return res.status(500).json({ 
+            return res.status(500).json({
                 message: 'Error: No se obtuvieron resultados del análisis'
             });
         }
@@ -154,14 +158,123 @@ exports.analyzeImage = async (req, res) => {
         console.error('Error name:', error.name);
         console.error('Error message:', error.message);
         console.error('Stack:', error.stack);
-        
-        return res.status(500).json({ 
+
+        return res.status(500).json({
             message: 'Error del servidor al analizar la imagen',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno del servidor',
             details: process.env.NODE_ENV === 'development' ? {
                 type: error.name,
                 stack: error.stack
             } : undefined
+        });
+    }
+};
+
+// @desc    Analyze image using Python EXAI microservice (real Grad-CAM)
+// @route   POST /api/studies/analyze-exai
+// @access  Private
+exports.analyzeImageEXAI = async (req, res) => {
+    let imagePath = null;
+    let imageUrl = null;
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'Por favor carga una imagen' });
+        }
+
+        imagePath = path.join(__dirname, '../uploads', req.file.filename);
+        imageUrl = `/uploads/${req.file.filename}`;
+
+        if (!fs.existsSync(imagePath)) {
+            return res.status(400).json({ message: 'Error al guardar la imagen en el servidor' });
+        }
+
+        console.log(`🔍 [EXAI] Analizando imagen: ${imagePath}`);
+        const startTime = Date.now();
+
+        // Pre-classification: verify it's a chest X-ray (reuse existing classifier)
+        let classificationResult = null;
+        try {
+            classificationResult = await onnxAnalyzer.classifyChestXray(imagePath);
+        } catch (classifierError) {
+            console.warn('⚠️ Error en pre-clasificación, continuando:', classifierError.message);
+        }
+
+        if (classificationResult && !classificationResult.isChestXray) {
+            console.log(`❌ Imagen rechazada: no es radiografía de tórax`);
+            try { await fs.promises.unlink(imagePath); } catch (e) { /* ignore */ }
+            return res.status(400).json({
+                message: 'La imagen proporcionada no parece ser una radiografía de tórax. Por favor, sube una radiografía válida.',
+                isNotXray: true,
+                confidence: classificationResult.otherProbability
+            });
+        }
+
+        // Forward image to Python EXAI microservice
+        const formData = new FormData();
+        formData.append('file', fs.createReadStream(imagePath));
+
+        let exaiResponse;
+        try {
+            exaiResponse = await axios.post(
+                `${PYTHON_EXAI_URL}/predict-exai`,
+                formData,
+                {
+                    headers: formData.getHeaders(),
+                    timeout: 60000, // 60s timeout for model inference
+                    maxBodyLength: Infinity,
+                    maxContentLength: Infinity,
+                }
+            );
+        } catch (axiosError) {
+            console.error('❌ Error conectando con microservicio Python:', axiosError.message);
+            if (axiosError.code === 'ECONNREFUSED') {
+                return res.status(503).json({
+                    message: 'El servicio de IA explicable no está disponible. Asegúrese de que el microservicio Python esté ejecutándose.',
+                    error: 'EXAI_SERVICE_UNAVAILABLE'
+                });
+            }
+            return res.status(500).json({
+                message: 'Error al comunicarse con el servicio de IA explicable',
+                error: axiosError.message
+            });
+        }
+
+        const exaiData = exaiResponse.data;
+        const processingTime = Date.now() - startTime;
+
+        // Map Python response to existing Study schema format
+        const results = exaiData.predictions.map(p => ({
+            condition: p.class_es,
+            conditionEn: p.class_en,
+            probability: p.probability
+        }));
+
+        // Extract heatmap (remove data URI prefix if present for storage)
+        let heatmapBase64 = exaiData.heatmap_base64 || null;
+        if (heatmapBase64 && heatmapBase64.startsWith('data:image/png;base64,')) {
+            heatmapBase64 = heatmapBase64.replace('data:image/png;base64,', '');
+        }
+
+        console.log(`✅ [EXAI] Predicción: ${exaiData.predicted_class} (${(exaiData.confidence * 100).toFixed(2)}%) — ${processingTime}ms`);
+
+        return res.json({
+            imageUrl,
+            results,
+            predictedClass: exaiData.predicted_class,
+            predictedClassEn: exaiData.predicted_class_en,
+            confidence: exaiData.confidence,
+            heatmap: heatmapBase64,
+            modelType: 'densenet121-exai',
+            processingTime,
+            analysisDate: new Date()
+        });
+
+    } catch (error) {
+        console.error('❌ Error general en análisis EXAI:', error);
+        return res.status(500).json({
+            message: 'Error del servidor al analizar la imagen',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
         });
     }
 };

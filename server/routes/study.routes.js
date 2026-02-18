@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { analyzeImage, saveStudy, getHistory, getStudyById, getAvailableModels, deleteStudy } = require('../controllers/study.controller');
+const { analyzeImage, analyzeImageEXAI, saveStudy, getHistory, getStudyById, getAvailableModels, deleteStudy } = require('../controllers/study.controller');
 const { protect } = require('../middleware/auth.middleware');
 const multer = require('multer');
 const path = require('path');
@@ -35,6 +35,7 @@ const upload = multer({
 
 router.get('/models', protect, getAvailableModels);
 router.post('/analyze', protect, upload.single('image'), analyzeImage);
+router.post('/analyze-exai', protect, upload.single('image'), analyzeImageEXAI);
 router.post('/', protect, saveStudy);
 router.get('/', protect, getHistory);
 router.delete('/:id', protect, deleteStudy);

@@ -219,7 +219,7 @@ export default function Upload() {
         formData.append('modelType', selectedModel);
 
         try {
-            const { data } = await api.post('/studies/analyze', formData, {
+            const { data } = await api.post('/studies/analyze-exai', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 
@@ -335,18 +335,18 @@ export default function Upload() {
                                     <div
                                         key={step.id}
                                         className={`flex items-start gap-4 p-3 rounded-lg transition-all ${isActive
-                                                ? 'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800'
-                                                : isCompleted
-                                                    ? 'bg-slate-50 dark:bg-slate-700/30'
-                                                    : 'bg-transparent'
+                                            ? 'bg-cyan-50 dark:bg-cyan-900/20 border border-cyan-200 dark:border-cyan-800'
+                                            : isCompleted
+                                                ? 'bg-slate-50 dark:bg-slate-700/30'
+                                                : 'bg-transparent'
                                             }`}
                                     >
                                         <div
                                             className={`w-10 h-10 rounded-full flex items-center justify-center border-2 flex-shrink-0 transition-all ${isActive
-                                                    ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300'
-                                                    : isCompleted
-                                                        ? 'border-green-500 dark:border-green-400 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
-                                                        : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'
+                                                ? 'border-cyan-500 dark:border-cyan-400 bg-cyan-100 dark:bg-cyan-900/40 text-cyan-700 dark:text-cyan-300'
+                                                : isCompleted
+                                                    ? 'border-green-500 dark:border-green-400 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300'
+                                                    : 'border-slate-300 dark:border-slate-600 text-slate-400 dark:text-slate-500'
                                                 }`}
                                         >
                                             {isCompleted ? (
@@ -358,10 +358,10 @@ export default function Upload() {
                                         <div className="flex-1">
                                             <p
                                                 className={`font-semibold mb-1 ${isActive
-                                                        ? 'text-cyan-900 dark:text-cyan-200'
-                                                        : isCompleted
-                                                            ? 'text-slate-700 dark:text-slate-300'
-                                                            : 'text-slate-400 dark:text-slate-500'
+                                                    ? 'text-cyan-900 dark:text-cyan-200'
+                                                    : isCompleted
+                                                        ? 'text-slate-700 dark:text-slate-300'
+                                                        : 'text-slate-400 dark:text-slate-500'
                                                     }`}
                                             >
                                                 {step.label}
