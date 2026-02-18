@@ -226,6 +226,7 @@ export default function Upload() {
             // Save the study
             const { data: savedStudy } = await api.post('/studies', {
                 imageUrl: data.imageUrl,
+                cloudinaryId: data.cloudinaryId,
                 results: data.results,
                 predictedClass: data.predictedClass,
                 predictedClassEn: data.predictedClassEn,

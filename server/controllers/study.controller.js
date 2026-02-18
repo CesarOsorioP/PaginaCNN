@@ -2,6 +2,7 @@ const Study = require('../models/Study');
 const path = require('path');
 const fs = require('fs');
 const onnxAnalyzer = require('../utils/onnxAnalyzer');
+const { uploadImage, deleteImage } = require('../utils/cloudinary');
 
 // @desc    Get available models
 // @route   GET /api/studies/models
@@ -136,9 +137,30 @@ exports.analyzeImage = async (req, res) => {
 
         const processingTime = Date.now() - startTime;
 
+        // Subir imagen a Cloudinary y eliminar archivo local temporal
+        let cloudinaryId = null;
+        try {
+            const cloudResult = await uploadImage(imagePath);
+            imageUrl = cloudResult.url;
+            cloudinaryId = cloudResult.publicId;
+            console.log(`☁️ Imagen subida a Cloudinary: ${imageUrl}`);
+        } catch (cloudError) {
+            console.error('❌ Error subiendo a Cloudinary:', cloudError.message);
+            return res.status(500).json({ message: 'Error al almacenar la imagen en la nube' });
+        }
+
+        // Eliminar archivo local temporal
+        try {
+            await fs.promises.unlink(imagePath);
+            console.log(`🗑️ Archivo local temporal eliminado: ${imagePath}`);
+        } catch (unlinkErr) {
+            console.warn(`⚠️ No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+        }
+
         // Devolver respuesta exitosa
         return res.json({
             imageUrl,
+            cloudinaryId,
             results: predictionResult.results,
             predictedClass: predictionResult.predictedClass,
             predictedClassEn: predictionResult.predictedClassEn,
@@ -171,11 +193,12 @@ exports.analyzeImage = async (req, res) => {
 // @access  Private
 exports.saveStudy = async (req, res) => {
     try {
-        const { imageUrl, results, predictedClass, predictedClassEn, confidence, heatmap, modelType, processingTime, summary } = req.body;
+        const { imageUrl, cloudinaryId, results, predictedClass, predictedClassEn, confidence, heatmap, modelType, processingTime, summary } = req.body;
 
         const study = await Study.create({
             user: req.user._id,
             imageUrl,
+            cloudinaryId,
             results,
             predictedClass,
             predictedClassEn,
@@ -241,15 +264,22 @@ exports.deleteStudy = async (req, res) => {
             return res.status(401).json({ message: 'No autorizado para eliminar este estudio' });
         }
 
-        // Delete the image file if it exists
-        if (study.imageUrl && study.imageUrl.startsWith('/uploads/')) {
+        // Eliminar imagen de Cloudinary o del disco local (fallback para estudios antiguos)
+        if (study.cloudinaryId) {
+            try {
+                await deleteImage(study.cloudinaryId);
+                console.log(`☁️ Imagen eliminada de Cloudinary: ${study.cloudinaryId}`);
+            } catch (cloudError) {
+                console.warn(`⚠️ Error eliminando imagen de Cloudinary: ${cloudError.message}`);
+            }
+        } else if (study.imageUrl && study.imageUrl.startsWith('/uploads/')) {
             const imagePath = path.join(__dirname, '../uploads', path.basename(study.imageUrl));
             if (fs.existsSync(imagePath)) {
                 try {
-                    fs.unlinkSync(imagePath);
-                    console.log(`✅ Imagen eliminada: ${imagePath}`);
+                    await fs.promises.unlink(imagePath);
+                    console.log(`✅ Imagen local eliminada: ${imagePath}`);
                 } catch (fileError) {
-                    console.warn(`⚠️ Error eliminando imagen: ${fileError.message}`);
+                    console.warn(`⚠️ Error eliminando imagen local: ${fileError.message}`);
                 }
             }
         }

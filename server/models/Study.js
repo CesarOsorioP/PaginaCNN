@@ -10,6 +10,9 @@ const studySchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    cloudinaryId: {
+        type: String
+    },
     analysisDate: {
         type: Date,
         default: Date.now
