@@ -38,7 +38,6 @@ export default function Report() {
     const [viewMode, setViewMode] = useState('overlay'); // 'original', 'heatmap', 'overlay', 'grid'
     const [heatmapOpacity, setHeatmapOpacity] = useState(50); // 0-100%
     const [gridData, setGridData] = useState(null);
-    const gridCanvasRef = useRef(null);
 
     const GRID_SIZE = 8; // 8×8 grid
 

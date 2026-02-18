@@ -280,8 +280,29 @@ exports.analyzeImageEXAI = async (req, res) => {
 
         console.log(`✅ [EXAI] Predicción: ${exaiData.predicted_class} (${(exaiData.confidence * 100).toFixed(2)}%) — ${processingTime}ms`);
 
+        // Subir imagen a Cloudinary y eliminar archivo local temporal
+        let cloudinaryId = null;
+        try {
+            const cloudResult = await uploadImage(imagePath);
+            imageUrl = cloudResult.url;
+            cloudinaryId = cloudResult.publicId;
+            console.log(`☁️ [EXAI] Imagen subida a Cloudinary: ${imageUrl}`);
+        } catch (cloudError) {
+            console.error('❌ [EXAI] Error subiendo a Cloudinary:', cloudError.message);
+            return res.status(500).json({ message: 'Error al almacenar la imagen en la nube' });
+        }
+
+        // Eliminar archivo local temporal
+        try {
+            await fs.promises.unlink(imagePath);
+            console.log(`🗑️ [EXAI] Archivo local temporal eliminado`);
+        } catch (unlinkErr) {
+            console.warn(`⚠️ [EXAI] No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+        }
+
         return res.json({
             imageUrl,
+            cloudinaryId,
             results,
             predictedClass: exaiData.predicted_class,
             predictedClassEn: exaiData.predicted_class_en,
