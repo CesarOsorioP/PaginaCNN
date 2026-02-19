@@ -12,9 +12,12 @@ import os
 import json
 import base64
 import logging
+import hashlib
+from pathlib import Path
 
 import cv2
 import numpy as np
+import requests
 import torch
 import torch.nn.functional as F
 from PIL import Image
@@ -31,10 +34,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("exai-service")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.environ.get(
-    "MODEL_PATH",
-    os.path.join(BASE_DIR, "..", "best_densenet121.pth")
-)
+CACHE_DIR = os.environ.get("MODEL_CACHE_DIR", os.path.join(BASE_DIR, ".cache"))
+
+MODEL_URL = os.environ.get("MODEL_URL", "")
+MODEL_PATH = os.environ.get("MODEL_PATH", "")
+
 CLASS_MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
 
 # ImageNet normalization (same as training)
@@ -50,6 +54,66 @@ grad_cam_instance = None
 class_mapping = None
 
 
+def resolve_model_path() -> str:
+    """
+    Determine where the .pth file lives.  Priority:
+      1. MODEL_URL  → download from remote URL and cache locally.
+      2. MODEL_PATH → use the explicit local path as-is.
+      3. Fallback   → <BASE_DIR>/../best_densenet121.pth  (legacy default).
+    """
+    if MODEL_URL:
+        return _download_model(MODEL_URL)
+
+    if MODEL_PATH:
+        if not os.path.isfile(MODEL_PATH):
+            raise FileNotFoundError(f"MODEL_PATH set but file not found: {MODEL_PATH}")
+        return MODEL_PATH
+
+    fallback = os.path.join(BASE_DIR, "..", "best_densenet121.pth")
+    if os.path.isfile(fallback):
+        return fallback
+
+    raise FileNotFoundError(
+        "No model found. Set MODEL_URL (remote) or MODEL_PATH (local)."
+    )
+
+
+def _download_model(url: str) -> str:
+    """
+    Download the model from *url* into CACHE_DIR.
+    Skips the download if the cached file already exists.
+    Returns the local path to the cached file.
+    """
+    Path(CACHE_DIR).mkdir(parents=True, exist_ok=True)
+
+    url_hash = hashlib.sha256(url.encode()).hexdigest()[:12]
+    filename = f"model_{url_hash}.pth"
+    cached_path = os.path.join(CACHE_DIR, filename)
+
+    if os.path.isfile(cached_path):
+        logger.info("Model already cached at %s — skipping download.", cached_path)
+        return cached_path
+
+    logger.info("Downloading model from %s …", url)
+    try:
+        resp = requests.get(url, stream=True, timeout=600)
+        resp.raise_for_status()
+    except requests.RequestException as exc:
+        raise RuntimeError(f"Failed to download model from {url}: {exc}") from exc
+
+    tmp_path = cached_path + ".tmp"
+    downloaded = 0
+    with open(tmp_path, "wb") as f:
+        for chunk in resp.iter_content(chunk_size=8 * 1024 * 1024):
+            f.write(chunk)
+            downloaded += len(chunk)
+
+    os.replace(tmp_path, cached_path)
+    size_mb = downloaded / (1024 * 1024)
+    logger.info("Model downloaded (%.1f MB) → %s", size_mb, cached_path)
+    return cached_path
+
+
 def load_class_mapping():
     """Load the class mapping JSON."""
     with open(CLASS_MAPPING_PATH, "r", encoding="utf-8") as f:
@@ -62,24 +126,20 @@ def load_model(model_path: str, num_classes: int = 8):
     Mirrors the training setup: ImageNet features + custom classifier head.
     """
     net = models.densenet121(weights=None)
-    # Replace classifier head to match training (8 classes)
-    # Training used nn.Sequential(Dropout, Linear) → keys: classifier.0.*, classifier.1.*
     num_features = net.classifier.in_features
     net.classifier = torch.nn.Sequential(
         torch.nn.Dropout(p=0.2),
         torch.nn.Linear(num_features, num_classes),
     )
 
-    # Load trained weights
     state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
 
-    # Handle DataParallel-wrapped state dicts (keys prefixed with 'module.')
     if any(k.startswith("module.") for k in state_dict.keys()):
         state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
 
     net.load_state_dict(state_dict)
     net.eval()
-    logger.info("✅ DenseNet-121 model loaded from %s", model_path)
+    logger.info("DenseNet-121 model loaded from %s", model_path)
     return net
 
 
@@ -160,14 +220,13 @@ def startup_event():
     """Load model and class mapping once when the server starts."""
     global model, grad_cam_instance, class_mapping
 
-    logger.info("🚀 Starting EXAI microservice...")
+    logger.info("Starting EXAI microservice...")
 
-    # Load class mapping
     class_mapping = load_class_mapping()
-    logger.info("📋 Class mapping loaded: %s", class_mapping["class_order"])
+    logger.info("Class mapping loaded: %s", class_mapping["class_order"])
 
-    # Load model
-    model = load_model(MODEL_PATH, num_classes=len(class_mapping["class_order"]))
+    model_path = resolve_model_path()
+    model = load_model(model_path, num_classes=len(class_mapping["class_order"]))
 
     # Initialize Grad-CAM on the last dense block
     # DenseNet-121 architecture: features → (conv0, norm0, relu0, pool0,
