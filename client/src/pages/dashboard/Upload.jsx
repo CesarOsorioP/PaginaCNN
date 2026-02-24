@@ -167,27 +167,6 @@ export default function Upload() {
         };
     }, []);
 
-    useEffect(() => {
-        if (analyzing) {
-            setAnalysisProgress(0);
-            setCurrentStep(0);
-
-            const interval = setInterval(() => {
-                setAnalysisProgress((prev) => {
-                    const next = Math.min(prev + 1.5, 99);
-                    const step = ANALYSIS_STEPS.findIndex(({ threshold }) => next < threshold);
-                    setCurrentStep(step === -1 ? ANALYSIS_STEPS.length - 1 : step);
-                    return next;
-                });
-            }, 100);
-
-            return () => clearInterval(interval);
-        } else {
-            setAnalysisProgress(0);
-            setCurrentStep(0);
-        }
-    }, [analyzing]);
-
     const handleFileSelect = (file) => {
         if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
             if (file.size > 10 * 1024 * 1024) {
@@ -214,14 +193,50 @@ export default function Upload() {
         if (!selectedFile || !selectedModel) return;
 
         setAnalyzing(true);
+        setAnalysisProgress(0);
+        setCurrentStep(0);
+        
+        const jobId = Math.random().toString(36).substring(7);
         const formData = new FormData();
         formData.append('image', selectedFile);
         formData.append('modelType', selectedModel);
+        formData.append('jobId', jobId);
+
+        // Polling interval para progreso real desde el backend
+        const pollInterval = setInterval(async () => {
+            try {
+                const { data } = await api.get(`/studies/progress?jobId=${jobId}`);
+                if (data && data.progress > 0) {
+                    setAnalysisProgress(prev => Math.max(prev, data.progress));
+                    if (data.stepIndex !== undefined) {
+                        setCurrentStep(prev => Math.max(prev, data.stepIndex));
+                    }
+                }
+            } catch (err) {
+                // Ignore polling errors to not interrupt the UI
+            }
+        }, 800);
 
         try {
             const { data } = await api.post('/studies/analyze-exai', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' }
+                headers: { 'Content-Type': 'multipart/form-data' },
+                onUploadProgress: (progressEvent) => {
+                    if (progressEvent.total) {
+                        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                        // El proceso de subida corresponde al primer 15% del progreso total
+                        const mappedProgress = percentCompleted * 0.15;
+                        setAnalysisProgress(prev => Math.max(prev, mappedProgress));
+                        setCurrentStep(0);
+                    }
+                }
             });
+
+            clearInterval(pollInterval);
+            setAnalysisProgress(100);
+            setCurrentStep(4);
+            
+            // Artificial delay para que el usuario vea el 100% completado antes de navegar
+            await new Promise(r => setTimeout(r, 600));
 
             // Save the study
             const { data: savedStudy } = await api.post('/studies', {
@@ -238,6 +253,7 @@ export default function Upload() {
 
             navigate(`/report/${savedStudy._id}`);
         } catch (error) {
+            clearInterval(pollInterval);
             console.error('Error analyzing image:', error);
             if (error.response?.data?.isNotXray) {
                 showAlert(
@@ -255,27 +271,10 @@ export default function Upload() {
                 );
             }
         } finally {
+            clearInterval(pollInterval);
             setAnalyzing(false);
         }
     };
-
-    useEffect(() => {
-        if (analyzing) {
-            setAnalysisProgress(0);
-            setCurrentStep(0);
-
-            const interval = setInterval(() => {
-                setAnalysisProgress((prev) => {
-                    const next = Math.min(prev + 1.5, 99);
-                    const step = ANALYSIS_STEPS.findIndex(({ threshold }) => next < threshold);
-                    setCurrentStep(step === -1 ? ANALYSIS_STEPS.length - 1 : step);
-                    return next;
-                });
-            }, 100);
-
-            return () => clearInterval(interval);
-        }
-    }, [analyzing]);
 
     if (analyzing) {
         const currentStepInfo = ANALYSIS_STEPS[currentStep] || ANALYSIS_STEPS[0];

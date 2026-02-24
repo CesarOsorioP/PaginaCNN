@@ -59,15 +59,23 @@ export default function Dashboard() {
     }).length;
 
     // Calculate average processing time
-    const studiesWithTime = studies.filter(s => s.processingTime);
+    const studiesWithTime = studies.filter(s => typeof s.processingTime === 'number' && s.processingTime > 0);
     const avgTimeMs = studiesWithTime.length > 0
         ? studiesWithTime.reduce((acc, s) => acc + s.processingTime, 0) / studiesWithTime.length
         : 0;
-    const avgTimeSec = (avgTimeMs / 1000).toFixed(1);
+    const avgTimeSec = (avgTimeMs / 1000).toFixed(2);
+
+    // Calculate this month average time
+    const studiesWithTimeThisMonth = studiesWithTime.filter(s => {
+        const date = new Date(s.createdAt || s.analysisDate);
+        return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
+    });
+    const avgTimeThisMonthMs = studiesWithTimeThisMonth.length > 0
+        ? studiesWithTimeThisMonth.reduce((acc, s) => acc + s.processingTime, 0) / studiesWithTimeThisMonth.length
+        : avgTimeMs; // fallback
 
     // Calculate average processing time for last month
-    const studiesWithTimeLastMonth = studies.filter(s => {
-        if (!s.processingTime) return false;
+    const studiesWithTimeLastMonth = studiesWithTime.filter(s => {
         const date = new Date(s.createdAt || s.analysisDate);
         return date.getMonth() === lastMonth && date.getFullYear() === lastMonthYear;
     });
@@ -76,9 +84,9 @@ export default function Dashboard() {
         : 0;
 
     const timeDiff = avgTimeLastMonthMs > 0
-        ? (avgTimeMs - avgTimeLastMonthMs) / 1000
+        ? (avgTimeThisMonthMs - avgTimeLastMonthMs) / 1000
         : 0;
-    const timeDiffLabel = timeDiff > 0 ? `+${timeDiff.toFixed(1)}s` : `${timeDiff.toFixed(1)}s`;
+    const timeDiffLabel = timeDiff > 0 ? `+${timeDiff.toFixed(2)}s` : `${timeDiff.toFixed(2)}s`;
 
     const getResultBadge = (condition) => {
         const conditionLower = condition?.toLowerCase() || '';

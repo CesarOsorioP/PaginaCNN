@@ -1011,9 +1011,11 @@ export default function Report() {
                             <div className="flex justify-between">
                                 <div className="flex items-center gap-2">
                                     <span className="text-slate-600 dark:text-slate-400">Rendimiento:</span>
-                                    <HelperTooltip text="Tiempo promedio que toma el modelo en procesar una imagen en el hardware actual." />
+                                    <HelperTooltip text="Tiempo exacto que tomó el modelo en procesar esta imagen específica en el hardware del servidor." />
                                 </div>
-                                <span className="text-slate-900 dark:text-white font-medium">{modelMeta.throughput}</span>
+                                <span className="text-slate-900 dark:text-white font-medium">
+                                    {study.processingTime ? `${(study.processingTime / 1000).toFixed(2)}s` : modelMeta.throughput}
+                                </span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-slate-600 dark:text-slate-400">Enfoque:</span>

@@ -4,9 +4,23 @@ const fs = require('fs');
 const axios = require('axios');
 const FormData = require('form-data');
 const onnxAnalyzer = require('../utils/onnxAnalyzer');
-const { uploadImage, deleteImage } = require('../utils/cloudinary');
+const uploadImage = require('../utils/cloudinary').uploadImage;
+const deleteImage = require('../utils/cloudinary').deleteImage;
 
 const PYTHON_EXAI_URL = process.env.PYTHON_EXAI_URL || 'http://localhost:8000';
+
+const globalProgress = new Map();
+
+// @desc    Get analysis progress
+// @route   GET /api/studies/progress
+// @access  Private
+exports.getProgress = (req, res) => {
+    const jobId = req.query.jobId;
+    if (!jobId || !globalProgress.has(jobId)) {
+        return res.json({ progress: 0, stepIndex: 0 });
+    }
+    return res.json(globalProgress.get(jobId));
+};
 
 // @desc    Get available models
 // @route   GET /api/studies/models
@@ -198,6 +212,13 @@ exports.analyzeImage = async (req, res) => {
 exports.analyzeImageEXAI = async (req, res) => {
     let imagePath = null;
     let imageUrl = null;
+    const jobId = req.body.jobId;
+
+    const updateProgress = (progress, stepIndex) => {
+        if (jobId) {
+            globalProgress.set(jobId, { progress, stepIndex });
+        }
+    };
 
     try {
         if (!req.file) {
@@ -214,6 +235,8 @@ exports.analyzeImageEXAI = async (req, res) => {
         console.log(`🔍 [EXAI] Analizando imagen: ${imagePath}`);
         const startTime = Date.now();
 
+        updateProgress(20, 1); // Preprocesamiento
+
         // Pre-classification: verify it's a chest X-ray (reuse existing classifier)
         let classificationResult = null;
         try {
@@ -225,12 +248,15 @@ exports.analyzeImageEXAI = async (req, res) => {
         if (classificationResult && !classificationResult.isChestXray) {
             console.log(`❌ Imagen rechazada: no es radiografía de tórax`);
             try { await fs.promises.unlink(imagePath); } catch (e) { /* ignore */ }
+            if (jobId) globalProgress.delete(jobId);
             return res.status(400).json({
                 message: 'La imagen proporcionada no parece ser una radiografía de tórax. Por favor, sube una radiografía válida.',
                 isNotXray: true,
                 confidence: classificationResult.otherProbability
             });
         }
+
+        updateProgress(40, 2); // Inferencia IA
 
         // Forward image to Python EXAI microservice
         const formData = new FormData();
@@ -250,6 +276,7 @@ exports.analyzeImageEXAI = async (req, res) => {
             );
         } catch (axiosError) {
             console.error('❌ Error conectando con microservicio Python:', axiosError.message);
+            if (jobId) globalProgress.delete(jobId);
             if (axiosError.code === 'ECONNREFUSED') {
                 return res.status(503).json({
                     message: 'El servicio de IA explicable no está disponible. Asegúrese de que el microservicio Python esté ejecutándose.',
@@ -261,6 +288,8 @@ exports.analyzeImageEXAI = async (req, res) => {
                 error: axiosError.message
             });
         }
+
+        updateProgress(75, 3); // Generando heatmap
 
         const exaiData = exaiResponse.data;
         const processingTime = Date.now() - startTime;
@@ -280,6 +309,8 @@ exports.analyzeImageEXAI = async (req, res) => {
 
         console.log(`✅ [EXAI] Predicción: ${exaiData.predicted_class} (${(exaiData.confidence * 100).toFixed(2)}%) — ${processingTime}ms`);
 
+        updateProgress(85, 4); // Finalizando / Subiendo a Cloudinary
+
         // Subir imagen a Cloudinary y eliminar archivo local temporal
         let cloudinaryId = null;
         try {
@@ -289,8 +320,11 @@ exports.analyzeImageEXAI = async (req, res) => {
             console.log(`☁️ [EXAI] Imagen subida a Cloudinary: ${imageUrl}`);
         } catch (cloudError) {
             console.error('❌ [EXAI] Error subiendo a Cloudinary:', cloudError.message);
+            if (jobId) globalProgress.delete(jobId);
             return res.status(500).json({ message: 'Error al almacenar la imagen en la nube' });
         }
+
+        updateProgress(95, 4); // Listo para retornar
 
         // Eliminar archivo local temporal
         try {
@@ -299,6 +333,8 @@ exports.analyzeImageEXAI = async (req, res) => {
         } catch (unlinkErr) {
             console.warn(`⚠️ [EXAI] No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
         }
+
+        if (jobId) globalProgress.delete(jobId);
 
         return res.json({
             imageUrl,
@@ -315,6 +351,7 @@ exports.analyzeImageEXAI = async (req, res) => {
 
     } catch (error) {
         console.error('❌ Error general en análisis EXAI:', error);
+        if (jobId) globalProgress.delete(jobId);
         return res.status(500).json({
             message: 'Error del servidor al analizar la imagen',
             error: process.env.NODE_ENV === 'development' ? error.message : 'Error interno'
