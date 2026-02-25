@@ -11,12 +11,19 @@ const MODEL_INFO = {
         strengths: ['Alta precisión en casos comunes', 'Ideal para demos y triaje rápido'],
         badge: 'Recomendado'
     },
-    densenet121: {
+    'densenet121-exai': {
         name: 'DenseNet121',
-        description: 'Arquitectura profunda enfocada en máxima sensibilidad para detectar hallazgos sutiles.',
+        description: 'Arquitectura profunda con Grad-CAM real para máxima interpretabilidad.',
         latency: '3-4s',
-        strengths: ['Mayor sensibilidad en patologías raras', 'Mejor desempeño con datasets ruidosos'],
+        strengths: ['Mayor sensibilidad en patologías raras', 'Heatmap real (Grad-CAM)'],
         badge: 'Alta Sensibilidad'
+    },
+    'densenet-pro': {
+        name: 'DenseNet Pro',
+        description: 'Modelo avanzado de mayor capacidad y entrenamiento extendido con Grad-CAM real.',
+        latency: '4-6s',
+        strengths: ['Mayor robustez en casos complejos', 'Entrenado con dataset ampliado', 'Heatmap real (Grad-CAM)'],
+        badge: 'Pro'
     }
 };
 
@@ -116,7 +123,7 @@ export default function Upload() {
     const [models, setModels] = useState([]);
     const [modelsLoading, setModelsLoading] = useState(true);
     const [modelError, setModelError] = useState('');
-    const [selectedModel, setSelectedModel] = useState('efficientnet');
+    const [selectedModel, setSelectedModel] = useState('densenet121-exai');
     const [alertInfo, setAlertInfo] = useState(null);
 
     const showAlert = (type, title, message, opts = {}) => {
@@ -127,36 +134,15 @@ export default function Upload() {
         let isMounted = true;
 
         const fetchModels = async () => {
-            try {
-                const { data } = await api.get('/studies/models');
-                if (!isMounted) return;
-
-                if (data.models?.length) {
-                    setModels(data.models);
-                    setSelectedModel(data.models[0].id);
-                } else {
-                    // Si no hay modelos desde el backend, usar la configuración local
-                    const fallback = Object.keys(MODEL_INFO).map((key) => ({
-                        id: key,
-                        name: MODEL_INFO[key].name
-                    }));
-                    setModels(fallback);
-                    setSelectedModel(fallback[0]?.id || 'efficientnet');
-                }
-            } catch (error) {
-                if (!isMounted) return;
-                console.warn('No se pudieron cargar los modelos disponibles:', error);
-                setModelError('No pudimos contactar al servidor de modelos. Usaremos EfficientNet por defecto.');
-                const fallback = Object.keys(MODEL_INFO).map((key) => ({
-                    id: key,
-                    name: MODEL_INFO[key].name
-                }));
+            // Always use the local MODEL_INFO catalogue as source of truth for the UI
+            const fallback = Object.keys(MODEL_INFO).map((key) => ({
+                id: key,
+                name: MODEL_INFO[key].name
+            }));
+            if (isMounted) {
                 setModels(fallback);
-                setSelectedModel(fallback[0]?.id || 'efficientnet');
-            } finally {
-                if (isMounted) {
-                    setModelsLoading(false);
-                }
+                setSelectedModel('densenet121-exai');
+                setModelsLoading(false);
             }
         };
 
@@ -195,7 +181,7 @@ export default function Upload() {
         setAnalyzing(true);
         setAnalysisProgress(0);
         setCurrentStep(0);
-        
+
         const jobId = Math.random().toString(36).substring(7);
         const formData = new FormData();
         formData.append('image', selectedFile);
@@ -234,7 +220,7 @@ export default function Upload() {
             clearInterval(pollInterval);
             setAnalysisProgress(100);
             setCurrentStep(4);
-            
+
             // Artificial delay para que el usuario vea el 100% completado antes de navegar
             await new Promise(r => setTimeout(r, 600));
 
@@ -410,78 +396,51 @@ export default function Upload() {
                 Selecciona el modelo de IA que quieres usar y luego sube la imagen. Guardaremos el estudio automáticamente con toda la trazabilidad.
             </p>
 
-            {/* Model selector */}
-            <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg p-6 mb-8 shadow-sm dark:shadow-none">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
-                    <div>
-                        <p className="text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">MODELOS DISPONIBLES</p>
-                        <h2 className="text-xl font-semibold text-slate-900 dark:text-white">Selecciona tu motor de diagnóstico</h2>
-                    </div>
-                    <div className="text-sm text-slate-500 dark:text-slate-400">
-                        {modelsLoading ? 'Cargando modelos...' : `Actualmente seleccionado: ${MODEL_INFO[selectedModel]?.name || 'EfficientNet'}`}
-                    </div>
+            {/* Model selector — compact dropdown */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm dark:shadow-none">
+                <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-400">neurology</span>
+                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Motor de diagnóstico:</span>
                 </div>
 
                 {modelError && (
-                    <div className="mb-4 p-3 rounded border border-yellow-200 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 text-sm">
-                        {modelError}
-                    </div>
+                    <span className="text-xs text-yellow-700 dark:text-yellow-300">{modelError}</span>
                 )}
 
-                <div className="grid gap-4 md:grid-cols-2">
-                    {(modelsLoading ? ['skeleton-1', 'skeleton-2'] : models).map((model, idx) => {
-                        if (modelsLoading) {
-                            return (
-                                <div
-                                    key={idx}
-                                    className="h-32 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 animate-pulse"
-                                ></div>
-                            );
-                        }
-
-                        const meta = MODEL_INFO[model.id] || {};
-                        const isActive = selectedModel === model.id;
-
-                        return (
-                            <button
-                                key={model.id}
-                                type="button"
-                                onClick={() => setSelectedModel(model.id)}
-                                className={`text-left rounded-xl border p-4 transition-all ${isActive
-                                    ? 'border-cyan-400 bg-cyan-50 dark:bg-cyan-400/10 shadow-lg shadow-cyan-100 dark:shadow-cyan-900/40'
-                                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/40 hover:border-slate-300 dark:hover:border-slate-600'
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between mb-2">
-                                    <div>
-                                        <p className="text-xs uppercase tracking-wider text-slate-500 dark:text-slate-400">Modelo</p>
-                                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white">{meta.name || model.name}</h3>
-                                    </div>
-                                    {meta.badge && (
-                                        <span className="text-xs px-3 py-1 rounded-full bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-700">
-                                            {meta.badge}
-                                        </span>
-                                    )}
-                                </div>
-                                <p className="text-sm text-slate-600 dark:text-slate-300 mb-3">
-                                    {meta.description || 'Modelo validado para análisis torácico.'}
-                                </p>
-                                <div className="flex flex-wrap gap-2 text-xs text-slate-600 dark:text-slate-300">
-                                    {meta.strengths?.map((strength) => (
-                                        <span key={strength} className="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                            {strength}
-                                        </span>
-                                    ))}
-                                    {meta.latency && (
-                                        <span className="px-2 py-1 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                                            Latencia {meta.latency}
-                                        </span>
-                                    )}
-                                </div>
-                            </button>
-                        );
-                    })}
+                <div className="relative flex-1 sm:max-w-xs">
+                    <select
+                        id="model-select"
+                        value={selectedModel}
+                        onChange={(e) => setSelectedModel(e.target.value)}
+                        disabled={modelsLoading}
+                        className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-4 py-2.5 pr-10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors disabled:opacity-60"
+                    >
+                        {models.map((m) => (
+                            <option key={m.id} value={m.id}>
+                                {MODEL_INFO[m.id]?.name || m.name}
+                                {MODEL_INFO[m.id]?.badge ? ` — ${MODEL_INFO[m.id].badge}` : ''}
+                            </option>
+                        ))}
+                    </select>
+                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-base">expand_more</span>
                 </div>
+
+                {/* Info pill for selected model */}
+                {MODEL_INFO[selectedModel] && (
+                    <div className="flex flex-wrap gap-2">
+                        {MODEL_INFO[selectedModel].badge && (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${selectedModel === 'densenet-pro'
+                                    ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-700'
+                                    : 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-700'
+                                }`}>
+                                {MODEL_INFO[selectedModel].badge}
+                            </span>
+                        )}
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                            Latencia {MODEL_INFO[selectedModel].latency}
+                        </span>
+                    </div>
+                )}
             </div>
 
             <div className="grid lg:grid-cols-3 gap-6">

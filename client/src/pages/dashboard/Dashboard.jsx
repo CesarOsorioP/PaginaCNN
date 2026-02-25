@@ -106,7 +106,9 @@ export default function Dashboard() {
         if (!modelType) return 'EfficientNet-B4';
         const map = {
             efficientnet: 'EfficientNet-B4',
-            densenet121: 'DenseNet121'
+            densenet121: 'DenseNet121',
+            'densenet121-exai': 'DenseNet121 (EXAI)',
+            'densenet-pro': 'DenseNet Pro'
         };
         return map[modelType] || modelType;
     };

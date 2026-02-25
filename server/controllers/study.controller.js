@@ -258,9 +258,15 @@ exports.analyzeImageEXAI = async (req, res) => {
 
         updateProgress(40, 2); // Inferencia IA
 
-        // Forward image to Python EXAI microservice
+        // Determine which EXAI model to use
+        // For ONNX models (efficientnet, densenet121) we still use the regular route;
+        // for EXAI models (densenet121-exai, densenet-pro) we forward model_id to Python.
+        const exaiModelId = req.body.modelType || 'densenet121-exai';
+
+        // Forward image + model_id to Python EXAI microservice
         const formData = new FormData();
         formData.append('file', fs.createReadStream(imagePath));
+        formData.append('model_id', exaiModelId);
 
         let exaiResponse;
         try {
@@ -344,7 +350,7 @@ exports.analyzeImageEXAI = async (req, res) => {
             predictedClassEn: exaiData.predicted_class_en,
             confidence: exaiData.confidence,
             heatmap: heatmapBase64,
-            modelType: 'densenet121-exai',
+            modelType: exaiModelId,
             processingTime,
             analysisDate: new Date()
         });
