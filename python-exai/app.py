@@ -41,7 +41,7 @@ CLASS_MAPPING_PATH = os.path.join(BASE_DIR, "class_mapping.json")
 # ImageNet normalization (same as training)
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD  = [0.229, 0.224, 0.225]
-IMG_SIZE = 224
+IMG_SIZE = 320
 
 # ---------------------------------------------------------------------------
 # Model Registry — add new models here
@@ -179,7 +179,13 @@ def load_model_entry(model_id: str) -> dict:
     checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
 
     # Support full training checkpoints that wrap the state dict
+    disease_names = None
+    optimal_thresholds = None
+    
     if isinstance(checkpoint, dict):
+        disease_names = checkpoint.get("disease_names")
+        optimal_thresholds = checkpoint.get("optimal_thresholds")
+        
         if "model_state_dict" in checkpoint:
             logger.info("Detected full training checkpoint for '%s', extracting model_state_dict", model_id)
             state_dict = checkpoint["model_state_dict"]
@@ -196,9 +202,9 @@ def load_model_entry(model_id: str) -> dict:
     for k, v in state_dict.items():
         name = k
         if name.startswith("module."):
-            name = name.replace("module.", "")
+            name = name.replace("module.", "", 1)
         if name.startswith("backbone."):
-            name = name.replace("backbone.", "")
+            name = name.replace("backbone.", "", 1)
         new_state_dict[name] = v
 
     net.load_state_dict(new_state_dict)
@@ -210,7 +216,12 @@ def load_model_entry(model_id: str) -> dict:
     gc = GradCAM(net, target_layer)
     logger.info("Grad-CAM initialised on features.denseblock4 for '%s'", model_id)
 
-    entry = {"net": net, "grad_cam": gc}
+    entry = {
+        "net": net,
+        "grad_cam": gc,
+        "disease_names": disease_names,
+        "optimal_thresholds": optimal_thresholds
+    }
     models_cache[model_id] = entry
     return entry
 
@@ -385,17 +396,50 @@ async def predict_exai(
         raise HTTPException(status_code=500, detail=f"Inference error: {str(e)}")
 
     # Build predictions
-    class_order = class_mapping["class_order"]
+    disease_names = entry.get("disease_names")
+    optimal_thresholds = entry.get("optimal_thresholds") or {}
+    
     names_es = class_mapping["class_names_es"]
     descriptions_es = class_mapping["class_descriptions_es"]
 
     predictions = []
-    for i, class_en in enumerate(class_order):
-        predictions.append({
-            "class_en": class_en,
-            "class_es": names_es.get(class_en, class_en),
-            "probability": round(float(probabilities[i]), 6),
-        })
+    
+    if disease_names:
+        es_to_en_map = {
+            "Neumonía": "Pneumonia", "Neumonia": "Pneumonia", "Neumona": "Pneumonia", "Neumona": "Pneumonia",
+            "Atelectasia": "Atelectasis", "Edema": "Edema", "Tuberculosis": "Tuberculosis",
+            "COVID-19": "COVID-19", "Normal": "Normal", "Nodules": "Nodule", "Mass": "Mass"
+        }
+        for i, raw_name in enumerate(disease_names):
+            # Sometimes encoding issues happen with 'Neumonía'
+            clean_name = raw_name
+            if 'Neumon' in raw_name:
+                clean_name = 'Neumonía'
+                
+            prob = float(probabilities[i])
+            threshold = optimal_thresholds.get(raw_name, optimal_thresholds.get(clean_name, 0.5))
+            
+            class_en = es_to_en_map.get(clean_name, clean_name)
+            class_es = names_es.get(class_en, clean_name)
+            
+            predictions.append({
+                "class_en": class_en,
+                "class_es": class_es,
+                "probability": round(prob, 6),
+                "threshold": round(float(threshold), 6),
+                "is_positive": prob >= threshold
+            })
+    else:
+        class_order = class_mapping["class_order"]
+        for i, class_en in enumerate(class_order):
+            prob = float(probabilities[i])
+            predictions.append({
+                "class_en": class_en,
+                "class_es": names_es.get(class_en, class_en),
+                "probability": round(prob, 6),
+                "threshold": 0.5,
+                "is_positive": prob >= 0.5
+            })
 
     predictions.sort(key=lambda x: x["probability"], reverse=True)
     top = predictions[0]

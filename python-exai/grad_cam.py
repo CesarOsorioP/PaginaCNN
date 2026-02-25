@@ -59,7 +59,11 @@ class GradCAM:
 
         # Forward pass
         output = self.model(input_tensor)
-        probabilities = F.softmax(output, dim=1).detach().cpu().numpy()[0]
+        
+        # Determine if it's a multilabel model (pro model uses sigmoid)
+        # We can just apply sigmoid since it's an independent probability per class.
+        # Softmax would force them to sum to 1, which breaks multilabel.
+        probabilities = torch.sigmoid(output).detach().cpu().numpy()[0]
 
         if target_class is None:
             target_class = int(output.argmax(dim=1).item())

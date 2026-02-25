@@ -9,21 +9,14 @@ const MODEL_INFO = {
         description: 'Modelo optimizado para velocidad y excelente balance precisión/recuperación.',
         latency: '< 2s',
         strengths: ['Alta precisión en casos comunes', 'Ideal para demos y triaje rápido'],
-        badge: 'Recomendado'
-    },
-    'densenet121-exai': {
-        name: 'DenseNet121',
-        description: 'Arquitectura profunda con Grad-CAM real para máxima interpretabilidad.',
-        latency: '3-4s',
-        strengths: ['Mayor sensibilidad en patologías raras', 'Heatmap real (Grad-CAM)'],
-        badge: 'Alta Sensibilidad'
+        badge: 'Rápido'
     },
     'densenet-pro': {
         name: 'DenseNet Pro',
-        description: 'Modelo avanzado de mayor capacidad y entrenamiento extendido con Grad-CAM real.',
+        description: 'Modelo avanzado de mayor capacidad multietiqueta y entrenamiento extendido con Grad-CAM real.',
         latency: '4-6s',
         strengths: ['Mayor robustez en casos complejos', 'Entrenado con dataset ampliado', 'Heatmap real (Grad-CAM)'],
-        badge: 'Pro'
+        badge: 'Recomendado'
     }
 };
 
@@ -141,7 +134,7 @@ export default function Upload() {
             }));
             if (isMounted) {
                 setModels(fallback);
-                setSelectedModel('densenet121-exai');
+                setSelectedModel('densenet-pro');
                 setModelsLoading(false);
             }
         };

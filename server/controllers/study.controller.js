@@ -7,7 +7,7 @@ const onnxAnalyzer = require('../utils/onnxAnalyzer');
 const uploadImage = require('../utils/cloudinary').uploadImage;
 const deleteImage = require('../utils/cloudinary').deleteImage;
 
-const PYTHON_EXAI_URL =  process.env.PYTHON_EXAI_URL || 'http://localhost:8000';
+const PYTHON_EXAI_URL = process.env.PYTHON_EXAI_URL || 'http://localhost:8000';
 
 const globalProgress = new Map();
 
@@ -261,7 +261,10 @@ exports.analyzeImageEXAI = async (req, res) => {
         // Determine which EXAI model to use
         // For ONNX models (efficientnet, densenet121) we still use the regular route;
         // for EXAI models (densenet121-exai, densenet-pro) we forward model_id to Python.
-        const exaiModelId = req.body.modelType || 'densenet-pro';
+        let exaiModelId = req.body.modelType || 'densenet-pro';
+        if (exaiModelId === 'densenet121-exai') {
+            exaiModelId = 'densenet-pro'; // Map old ID to the new only available model
+        }
 
         // Forward image + model_id to Python EXAI microservice
         const formData = new FormData();
