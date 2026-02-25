@@ -8,6 +8,23 @@ const uploadImage = require('../utils/cloudinary').uploadImage;
 const deleteImage = require('../utils/cloudinary').deleteImage;
 
 const PYTHON_EXAI_URL = process.env.PYTHON_EXAI_URL || 'http://localhost:8000';
+const SERVER_URL = process.env.SERVER_URL || `http://localhost:${process.env.PORT || 5000}`;
+
+// Returns true only when all three Cloudinary vars are present
+const isCloudinaryConfigured = () =>
+    !!(process.env.CLOUDINARY_CLOUD_NAME &&
+        process.env.CLOUDINARY_API_KEY &&
+        process.env.CLOUDINARY_API_SECRET);
+
+// Upload to Cloudinary OR keep the file locally and return a local URL
+async function uploadImageSmart(filePath, filename) {
+    if (isCloudinaryConfigured()) {
+        return uploadImage(filePath); // { url, publicId }
+    }
+    // Local fallback — file stays in /uploads, serve it via Express static
+    console.log('☁️  Cloudinary not configured → serving image locally');
+    return { url: `${SERVER_URL}/uploads/${filename}`, publicId: null };
+}
 
 const globalProgress = new Map();
 
@@ -155,24 +172,26 @@ exports.analyzeImage = async (req, res) => {
 
         const processingTime = Date.now() - startTime;
 
-        // Subir imagen a Cloudinary y eliminar archivo local temporal
+        // Subir imagen a Cloudinary (o servir localmente si no está configurado)
         let cloudinaryId = null;
         try {
-            const cloudResult = await uploadImage(imagePath);
+            const cloudResult = await uploadImageSmart(imagePath, req.file.filename);
             imageUrl = cloudResult.url;
             cloudinaryId = cloudResult.publicId;
-            console.log(`☁️ Imagen subida a Cloudinary: ${imageUrl}`);
+            console.log(`☁️ Imagen almacenada en: ${imageUrl}`);
         } catch (cloudError) {
-            console.error('❌ Error subiendo a Cloudinary:', cloudError.message);
-            return res.status(500).json({ message: 'Error al almacenar la imagen en la nube' });
+            console.error('❌ Error almacenando imagen:', cloudError.message);
+            return res.status(500).json({ message: 'Error al almacenar la imagen' });
         }
 
-        // Eliminar archivo local temporal
-        try {
-            await fs.promises.unlink(imagePath);
-            console.log(`🗑️ Archivo local temporal eliminado: ${imagePath}`);
-        } catch (unlinkErr) {
-            console.warn(`⚠️ No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+        // Eliminar archivo local temporal SOLO si se subió a Cloudinary
+        if (cloudinaryId) {
+            try {
+                await fs.promises.unlink(imagePath);
+                console.log(`🗑️ Archivo local temporal eliminado: ${imagePath}`);
+            } catch (unlinkErr) {
+                console.warn(`⚠️ No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+            }
         }
 
         // Devolver respuesta exitosa
@@ -317,27 +336,29 @@ exports.analyzeImageEXAI = async (req, res) => {
 
         updateProgress(85, 4); // Finalizando / Subiendo a Cloudinary
 
-        // Subir imagen a Cloudinary y eliminar archivo local temporal
+        // Subir imagen a Cloudinary (o servir localmente si no está configurado)
         let cloudinaryId = null;
         try {
-            const cloudResult = await uploadImage(imagePath);
+            const cloudResult = await uploadImageSmart(imagePath, req.file.filename);
             imageUrl = cloudResult.url;
             cloudinaryId = cloudResult.publicId;
-            console.log(`☁️ [EXAI] Imagen subida a Cloudinary: ${imageUrl}`);
+            console.log(`☁️ [EXAI] Imagen almacenada en: ${imageUrl}`);
         } catch (cloudError) {
-            console.error('❌ [EXAI] Error subiendo a Cloudinary:', cloudError.message);
+            console.error('❌ [EXAI] Error almacenando imagen:', cloudError.message);
             if (jobId) globalProgress.delete(jobId);
-            return res.status(500).json({ message: 'Error al almacenar la imagen en la nube' });
+            return res.status(500).json({ message: 'Error al almacenar la imagen' });
         }
 
         updateProgress(95, 4); // Listo para retornar
 
-        // Eliminar archivo local temporal
-        try {
-            await fs.promises.unlink(imagePath);
-            console.log(`🗑️ [EXAI] Archivo local temporal eliminado`);
-        } catch (unlinkErr) {
-            console.warn(`⚠️ [EXAI] No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+        // Eliminar archivo local temporal SOLO si se subió a Cloudinary
+        if (cloudinaryId) {
+            try {
+                await fs.promises.unlink(imagePath);
+                console.log(`🗑️ [EXAI] Archivo local temporal eliminado`);
+            } catch (unlinkErr) {
+                console.warn(`⚠️ [EXAI] No se pudo eliminar archivo temporal: ${unlinkErr.message}`);
+            }
         }
 
         if (jobId) globalProgress.delete(jobId);

@@ -141,38 +141,79 @@ def load_class_mapping():
         return json.load(f)
 
 
-def build_densenet121(num_classes: int = 8):
+def build_densenet121(num_classes: int = 8, is_pro: bool = False):
     """Build DenseNet-121 with custom head (matches training setup)."""
     net = models.densenet121(weights=None)
     num_features = net.classifier.in_features
-    net.classifier = torch.nn.Sequential(
-        torch.nn.Dropout(p=0.2),
-        torch.nn.Linear(num_features, num_classes),
-    )
+    
+    if is_pro:
+        # Based on the error log, Pro model has a deeper sequential head
+        # Linear(1), BN(3), Linear(5), BN(7), Linear(9)
+        net.classifier = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.4),            # 0
+            torch.nn.Linear(num_features, 512), # 1
+            torch.nn.ReLU(inplace=True),        # 2
+            torch.nn.BatchNorm1d(512),          # 3
+            torch.nn.Dropout(p=0.3),            # 4
+            torch.nn.Linear(512, 256),          # 5
+            torch.nn.ReLU(inplace=True),        # 6
+            torch.nn.BatchNorm1d(256),          # 7
+            torch.nn.Dropout(p=0.2),            # 8
+            torch.nn.Linear(256, num_classes)   # 9
+        )
+    else:
+        net.classifier = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.2),
+            torch.nn.Linear(num_features, num_classes),
+        )
     return net
 
 
 def load_model_entry(model_id: str) -> dict:
     """
     Load a model (if not already cached) and return a dict with 'net' and 'grad_cam'.
+    Handles both plain state-dicts and full training checkpoints.
     """
     if model_id in models_cache:
         return models_cache[model_id]
 
     config = MODEL_REGISTRY[model_id]
     num_classes = config.get("num_classes", len(class_mapping["class_order"]))
+    is_pro = (model_id == "densenet-pro")
 
     model_path = _resolve_path_for(model_id)
-    net = build_densenet121(num_classes=num_classes)
+    net = build_densenet121(num_classes=num_classes, is_pro=is_pro)
 
-    state_dict = torch.load(model_path, map_location="cpu", weights_only=True)
-    if any(k.startswith("module.") for k in state_dict.keys()):
-        state_dict = {k.replace("module.", ""): v for k, v in state_dict.items()}
+    checkpoint = torch.load(model_path, map_location="cpu", weights_only=False)
 
-    net.load_state_dict(state_dict)
+    # Support full training checkpoints that wrap the state dict
+    if isinstance(checkpoint, dict):
+        if "model_state_dict" in checkpoint:
+            logger.info("Detected full training checkpoint for '%s', extracting model_state_dict", model_id)
+            state_dict = checkpoint["model_state_dict"]
+        elif "state_dict" in checkpoint:
+            logger.info("Detected checkpoint with 'state_dict' key for '%s'", model_id)
+            state_dict = checkpoint["state_dict"]
+        else:
+            state_dict = checkpoint  # Plain state dict
+    else:
+        state_dict = checkpoint
+
+    # Clean up prefixes: 'module.' (DataParallel) and 'backbone.' (Custom wrapper)
+    new_state_dict = {}
+    for k, v in state_dict.items():
+        name = k
+        if name.startswith("module."):
+            name = name.replace("module.", "")
+        if name.startswith("backbone."):
+            name = name.replace("backbone.", "")
+        new_state_dict[name] = v
+
+    net.load_state_dict(new_state_dict)
     net.eval()
     logger.info("Model '%s' loaded from %s", model_id, model_path)
 
+    # Note: For Pro model, Grad-CAM target layer is still features.denseblock4 (standard for DenseNet121)
     target_layer = net.features.denseblock4
     gc = GradCAM(net, target_layer)
     logger.info("Grad-CAM initialised on features.denseblock4 for '%s'", model_id)
@@ -180,6 +221,8 @@ def load_model_entry(model_id: str) -> dict:
     entry = {"net": net, "grad_cam": gc}
     models_cache[model_id] = entry
     return entry
+
+
 
 
 # ---------------------------------------------------------------------------

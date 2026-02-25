@@ -122,7 +122,7 @@ export default function Upload() {
     const fileInputRef = useRef(null);
     const [models, setModels] = useState([]);
     const [modelsLoading, setModelsLoading] = useState(true);
-    const [modelError, setModelError] = useState('');
+    const [modelError] = useState('');
     const [selectedModel, setSelectedModel] = useState('densenet121-exai');
     const [alertInfo, setAlertInfo] = useState(null);
 
@@ -430,8 +430,8 @@ export default function Upload() {
                     <div className="flex flex-wrap gap-2">
                         {MODEL_INFO[selectedModel].badge && (
                             <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${selectedModel === 'densenet-pro'
-                                    ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-700'
-                                    : 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-700'
+                                ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-700'
+                                : 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-700'
                                 }`}>
                                 {MODEL_INFO[selectedModel].badge}
                             </span>
