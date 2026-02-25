@@ -48,14 +48,6 @@ IMG_SIZE = 224
 # ---------------------------------------------------------------------------
 # Priority order for path resolution: first existing path wins.
 MODEL_REGISTRY = {
-    "densenet121-exai": {
-        "display_name": "DenseNet121",
-        "paths": [
-            os.path.join(BASE_DIR, "..", "best_densenet121.pth"),
-            os.environ.get("MODEL_PATH", ""),
-        ],
-        "num_classes": 8,
-    },
     "densenet-pro": {
         "display_name": "DenseNet Pro",
         "paths": [
@@ -68,7 +60,7 @@ MODEL_REGISTRY = {
 # Also honour legacy env-var MODEL_URL/MODEL_PATH for the default model
 _ENV_MODEL_URL = os.environ.get("MODEL_URL", "")
 if _ENV_MODEL_URL:
-    MODEL_REGISTRY["densenet121-exai"]["paths"].insert(0, _ENV_MODEL_URL)  # handled below
+    MODEL_REGISTRY["densenet-pro"]["paths"].insert(0, _ENV_MODEL_URL)  # handled below
 
 # ---------------------------------------------------------------------------
 # Global state — one entry per model_id
@@ -94,7 +86,7 @@ def _resolve_path_for(model_id: str) -> str:
             return p
 
     # Special case: if MODEL_URL env-var is set and model_id is the default
-    if model_id == "densenet121-exai" and _ENV_MODEL_URL:
+    if model_id == "densenet-pro" and _ENV_MODEL_URL:
         return _download_model(_ENV_MODEL_URL)
 
     raise FileNotFoundError(
@@ -296,8 +288,8 @@ def startup_event():
 
     # Warm up default model so first request is fast
     try:
-        load_model_entry("densenet121-exai")
-        logger.info("Default model 'densenet121-exai' warmed up.")
+        load_model_entry("densenet-pro")
+        logger.info("Default model 'densenet-pro' warmed up.")
     except Exception as exc:
         logger.warning("Could not warm up default model: %s", exc)
 
@@ -320,7 +312,7 @@ def list_models():
     for model_id, config in MODEL_REGISTRY.items():
         # Check at least one path exists (or URL is set)
         paths_exist = any(p and os.path.isfile(p) for p in config["paths"])
-        url_set = model_id == "densenet121-exai" and bool(_ENV_MODEL_URL)
+        url_set = model_id == "densenet-pro" and bool(_ENV_MODEL_URL)
         available = paths_exist or url_set
         result.append({
             "id": model_id,
@@ -333,7 +325,7 @@ def list_models():
 @app.post("/predict-exai")
 async def predict_exai(
     file: UploadFile = File(...),
-    model_id: Optional[str] = Form("densenet121-exai"),
+    model_id: Optional[str] = Form("densenet-pro"),
 ):
     """
     Analyze a chest X-ray image with the specified model.

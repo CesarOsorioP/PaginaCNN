@@ -261,7 +261,7 @@ exports.analyzeImageEXAI = async (req, res) => {
         // Determine which EXAI model to use
         // For ONNX models (efficientnet, densenet121) we still use the regular route;
         // for EXAI models (densenet121-exai, densenet-pro) we forward model_id to Python.
-        const exaiModelId = req.body.modelType || 'densenet121-exai';
+        const exaiModelId = req.body.modelType || 'densenet-pro';
 
         // Forward image + model_id to Python EXAI microservice
         const formData = new FormData();
