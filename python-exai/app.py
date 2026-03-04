@@ -1,7 +1,6 @@
 """
 FastAPI microservice for chest X-ray inference with Explainable AI (Grad-CAM).
 Supports multiple DenseNet-121 models selectable per-request.
-
 Usage:
     uvicorn app:app --host 0.0.0.0 --port 8000
 """
@@ -133,32 +132,71 @@ def load_class_mapping():
         return json.load(f)
 
 
-def build_densenet121(num_classes: int = 8, is_pro: bool = False):
-    """Build DenseNet-121 with custom head (matches training setup)."""
-    net = models.densenet121(weights=None)
-    num_features = net.classifier.in_features
-    
+class DenseNet121MultiLabelNoSigmoid(torch.nn.Module):
+    """
+    Wrapper around torchvision's DenseNet-121 that:
+      - Uses the same classifier head as the training code in `model.py`
+      - Implements a forward pass WITHOUT the final sigmoid.
+
+    Training (`model.py`) did:
+        features = backbone.features(x)
+        features = F.adaptive_avg_pool2d(features, (1, 1))
+        features = torch.flatten(features, 1)
+        logits   = backbone.classifier(features)
+        probabilities = torch.sigmoid(logits)
+
+    Here we reproduce exactly the same feature → logits path,
+    but we stop at logits so that callers (Grad-CAM, microservicio)
+    can apply `torch.sigmoid` externally.
+    """
+
+    def __init__(self, backbone: models.DenseNet):
+        super().__init__()
+        self.backbone = backbone
+        # Expose features / classifier so existing Grad-CAM code still works
+        self.features = backbone.features
+        self.classifier = backbone.classifier
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        features = self.features(x)
+        features = F.adaptive_avg_pool2d(features, (1, 1))
+        features = torch.flatten(features, 1)
+        logits = self.classifier(features)
+        return logits
+
+
+def build_densenet121(num_classes: int = 8, is_pro: bool = False) -> torch.nn.Module:
+    """
+    Build DenseNet-121 with custom head (matches training setup's head AND forward).
+
+    Important: we DO NOT use the standard torchvision DenseNet forward,
+    because it inserts an extra ReLU before the pooling step. The training
+    code in `model.py` did not include that extra ReLU, so we reproduce
+    the exact path here via DenseNet121MultiLabelNoSigmoid.
+    """
+    backbone = models.densenet121(weights=None)
+    num_features = backbone.classifier.in_features
+
     if is_pro:
-        # Based on the error log, Pro model has a deeper sequential head
-        # Linear(1), BN(3), Linear(5), BN(7), Linear(9)
-        net.classifier = torch.nn.Sequential(
-            torch.nn.Dropout(p=0.4),            # 0
-            torch.nn.Linear(num_features, 512), # 1
-            torch.nn.ReLU(inplace=True),        # 2
-            torch.nn.BatchNorm1d(512),          # 3
-            torch.nn.Dropout(p=0.3),            # 4
-            torch.nn.Linear(512, 256),          # 5
-            torch.nn.ReLU(inplace=True),        # 6
-            torch.nn.BatchNorm1d(256),          # 7
-            torch.nn.Dropout(p=0.2),            # 8
-            torch.nn.Linear(256, num_classes)   # 9
+        backbone.classifier = torch.nn.Sequential(
+            torch.nn.Dropout(p=0.4),
+            torch.nn.Linear(num_features, 512),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.BatchNorm1d(512),
+            torch.nn.Dropout(p=0.3),
+            torch.nn.Linear(512, 256),
+            torch.nn.ReLU(inplace=True),
+            torch.nn.BatchNorm1d(256),
+            torch.nn.Dropout(p=0.2),
+            torch.nn.Linear(256, num_classes),
         )
     else:
-        net.classifier = torch.nn.Sequential(
+        backbone.classifier = torch.nn.Sequential(
             torch.nn.Dropout(p=0.2),
             torch.nn.Linear(num_features, num_classes),
         )
-    return net
+
+    return DenseNet121MultiLabelNoSigmoid(backbone)
 
 
 def load_model_entry(model_id: str) -> dict:
@@ -197,17 +235,24 @@ def load_model_entry(model_id: str) -> dict:
     else:
         state_dict = checkpoint
 
-    # Clean up prefixes: 'module.' (DataParallel) and 'backbone.' (Custom wrapper)
+    # Clean up prefixes: for the Pro model we KEEP the 'backbone.' prefix,
+    # because our DenseNet121MultiLabelNoSigmoid exposes a nested `backbone`
+    # submodule. For non-Pro models, we strip it as antes.
     new_state_dict = {}
     for k, v in state_dict.items():
         name = k
         if name.startswith("module."):
             name = name.replace("module.", "", 1)
-        if name.startswith("backbone."):
+        if not is_pro and name.startswith("backbone."):
             name = name.replace("backbone.", "", 1)
         new_state_dict[name] = v
-
-    net.load_state_dict(new_state_dict)
+    # For the Pro wrapper model we allow strict=False because it has both
+    # top-level `features/*` aliases and the nested `backbone.features/*`
+    # parameters. We only care about correctly loading the backbone subtree.
+    if is_pro:
+        net.load_state_dict(new_state_dict, strict=False)
+    else:
+        net.load_state_dict(new_state_dict)
     net.eval()
     logger.info("Model '%s' loaded from %s", model_id, model_path)
 
@@ -245,8 +290,29 @@ def preprocess_image(image_bytes: bytes):
     Preprocess a raw image for model inference.
     Returns (tensor [1,3,224,224], original PIL image).
     """
-    pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    tensor = preprocess(pil_image).unsqueeze(0)  # [1, 3, 224, 224]
+    # Debug: log a stable hash of the exact bytes we received
+    img_hash = hashlib.sha256(image_bytes).hexdigest()
+
+    try:
+        pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception as e:
+        logger.error(
+            "Error opening image (hash=%s, len=%d): %s",
+            img_hash,
+            len(image_bytes),
+            str(e),
+        )
+        raise
+
+    logger.info(
+        "Preprocess image: hash=%s len=%d size=%s mode=%s",
+        img_hash,
+        len(image_bytes),
+        pil_image.size,
+        pil_image.mode,
+    )
+
+    tensor = preprocess(pil_image).unsqueeze(0)  # [1, 3, IMG_SIZE, IMG_SIZE]
     return tensor, pil_image
 
 
@@ -340,11 +406,9 @@ async def predict_exai(
 ):
     """
     Analyze a chest X-ray image with the specified model.
-
     Request: multipart/form-data with:
       - 'file': image file
       - 'model_id': (optional) model identifier, defaults to 'densenet121-exai'
-
     Response JSON:
     {
         "model_id": "densenet-pro",
@@ -440,6 +504,17 @@ async def predict_exai(
                 "threshold": 0.5,
                 "is_positive": prob >= 0.5
             })
+
+    # Debug: log full probability vector with class names before sorting
+    try:
+        debug_pairs = [f"{p['class_es']}={p['probability']:.4f}" for p in predictions]
+        logger.info(
+            "EXAI probabilities (model=%s): %s",
+            model_id,
+            " | ".join(debug_pairs),
+        )
+    except Exception as _log_exc:  # pragma: no cover - diagnostics only
+        logger.warning("Failed to log predictions debug info: %s", _log_exc)
 
     predictions.sort(key=lambda x: x["probability"], reverse=True)
     top = predictions[0]
