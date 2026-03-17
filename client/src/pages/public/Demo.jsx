@@ -18,9 +18,9 @@ const DEMO_CASES = [
         patient: 'Juan P.',
         age: 42,
         image: '/assets/demo/tuberculosis.png',
-        model: 'EfficientNet-B4',
+        model: 'DenseNet Pro',
         analysisTime: '6.4s',
-        summary: 'Infiltrados apicales bilaterales consistentes con tuberculosis activa.',
+        summary: 'Patrón radiológico en los lóbulos superiores sugestivo de infección tuberculosa activa.',
         confidence: 0.94,
         results: [
             { condition: 'Tuberculosis', probability: 0.94 },
@@ -48,9 +48,9 @@ const DEMO_CASES = [
         patient: 'Ana G.',
         age: 65,
         image: '/assets/demo/mass.png',
-        model: 'DenseNet121',
+        model: 'DenseNet Pro',
         analysisTime: '6.9s',
-        summary: 'Masa de bordes irregulares en campo pulmonar derecho. Alta sospecha de malignidad.',
+        summary: 'Se detecta engrosamiento o masa en el lóbulo inferior del pulmón derecho. Se recomienda evaluación adicional.',
         confidence: 0.89,
         results: [
             { condition: 'Masa', probability: 0.89 },
@@ -78,9 +78,9 @@ const DEMO_CASES = [
         patient: 'Luis M.',
         age: 38,
         image: '/assets/demo/covidd.png',
-        model: 'EfficientNet-B4',
+        model: 'DenseNet Pro',
         analysisTime: '6.7s',
-        summary: 'Opacidades en vidrio deslustrado periféricas. Patrón típico de neumonía viral (COVID-19).',
+        summary: 'Opacidades en múltiples zonas pulmonares periféricas. Patrón típico de neumonía viral.',
         confidence: 0.92,
         results: [
             { condition: 'Covid-19', probability: 0.92 },
@@ -110,6 +110,7 @@ export default function Demo() {
     const [isRunning, setIsRunning] = useState(false);
     const [currentStep, setCurrentStep] = useState(0);
     const [analysisComplete, setAnalysisComplete] = useState(false);
+    const [showHeatmap, setShowHeatmap] = useState(false);
 
     const activeCase = useMemo(() => DEMO_CASES[activeCaseIndex], [activeCaseIndex]);
 
@@ -145,16 +146,59 @@ export default function Demo() {
         setIsRunning(false);
         setCurrentStep(0);
         setAnalysisComplete(false);
+        setShowHeatmap(false);
     }, [activeCaseIndex]);
 
     const handleDemo = () => {
         setProgress(0);
         setCurrentStep(0);
         setAnalysisComplete(false);
+        setShowHeatmap(false);
         setIsRunning(true);
     };
 
     const progressLabel = ANALYSIS_STEPS[currentStep]?.label || 'Listo';
+    
+    // Calcular estilos dinámicos de la imagen basados en el progreso para dar vida a la app
+    const getImageStyle = () => {
+        if (!isRunning && !analysisComplete) return {};
+        
+        switch (currentStep) {
+            case 0:
+            case 1:
+                // Preprocesamiento: blanco y negro alto contraste
+                return { filter: 'grayscale(100%) contrast(140%) brightness(110%)', transition: 'filter 1s ease' };
+            case 2:
+                // Inferencia: parpadeo suave
+                return { filter: 'grayscale(50%) contrast(110%) saturate(150%) hue-rotate(180deg)', transition: 'filter 0.5s ease-in-out' };
+            default:
+                // Final
+                return { filter: 'grayscale(0%) contrast(100%)', transition: 'filter 1.5s ease' };
+        }
+    };
+
+    // Estilos del Heatmap Falso dependiendo del caso actual
+    const getHeatmapStyle = () => {
+        if (!showHeatmap || !analysisComplete) return { opacity: 0 };
+        
+        let background = '';
+        if (activeCase.id === 'tuberculosis') {
+            // Focos apicales (arriba ambos lados)
+            background = 'radial-gradient(circle at 30% 25%, rgba(255,50,0,0.6) 0%, transparent 20%), radial-gradient(circle at 70% 30%, rgba(255,70,0,0.5) 0%, transparent 25%)';
+        } else if (activeCase.id === 'mass') {
+            // Masa en campo pulmonar derecho (izquierda de la imagen)
+            background = 'radial-gradient(circle at 25% 65%, rgba(255,20,0,0.7) 0%, rgba(255,100,0,0.4) 15%, transparent 35%)';
+        } else if (activeCase.id === 'covid') {
+            // Intersticial multilobar (vidrio esmerilado en periferia de ambos pulmones)
+            background = 'radial-gradient(ellipse at 20% 50%, rgba(255,100,0,0.4) 0%, transparent 40%), radial-gradient(ellipse at 80% 60%, rgba(255,50,0,0.5) 0%, transparent 40%), radial-gradient(circle at 30% 75%, rgba(255,150,0,0.3) 0%, transparent 30%)';
+        }
+
+        return {
+            opacity: 1,
+            background,
+            transition: 'opacity 0.6s ease-in-out'
+        };
+    };
 
     return (
         <div className="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-white min-h-screen transition-colors duration-300">
@@ -264,15 +308,31 @@ export default function Demo() {
                         <div className="lg:col-span-2 space-y-6">
                             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm dark:shadow-none">
                                 <div className="grid md:grid-cols-2 gap-0">
-                                    <div className="relative">
+                                    <div className="relative group bg-black flex items-center justify-center min-h-[320px]">
                                         <img
                                             src={activeCase.image}
                                             alt={`Radiografía demo ${activeCase.id}`}
-                                            className="w-full h-full object-cover min-h-[320px]"
+                                            className="w-full h-full object-cover relative z-0 mix-blend-screen"
+                                            style={getImageStyle()}
                                         />
-                                        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-900/90 dark:to-slate-950/90 pointer-events-none"></div>
+                                        
+                                        {/* Fake Heatmap Layer */}
+                                        <div className="absolute inset-0 z-10 pointer-events-none mix-blend-multiply dark:mix-blend-screen" 
+                                             style={getHeatmapStyle()}>
+                                        </div>
+
+                                        <div className="absolute inset-0 z-20 bg-gradient-to-b from-transparent via-transparent to-slate-900/90 dark:to-slate-950/90 pointer-events-none"></div>
+                                        
+                                        {/* EXAI Indicator Label on Top Right */}
+                                        {showHeatmap && analysisComplete && (
+                                            <div className="absolute top-4 right-4 z-30 bg-rose-600/90 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-xs font-bold border border-rose-400/50 shadow-[0_0_15px_rgba(225,29,72,0.4)] flex items-center gap-1.5 animate-pulse">
+                                                <span className="w-2 h-2 rounded-full bg-white"></span>
+                                                MAPA DE ATENCIÓN ACTIVO
+                                            </div>
+                                        )}
+
                                         {analysisComplete && (
-                                            <div className="absolute bottom-0 left-0 right-0 p-4 flex items-center justify-between">
+                                            <div className="absolute bottom-0 left-0 right-0 p-4 z-30 flex items-center justify-between">
                                                 <div>
                                                     <p className="text-sm text-white/80">Modelo seleccionado</p>
                                                     <p className="text-xl font-semibold text-white">{activeCase.model}</p>
@@ -287,7 +347,7 @@ export default function Demo() {
                                             </div>
                                         )}
                                     </div>
-                                    <div className="p-6 space-y-4 bg-white dark:bg-slate-900">
+                                    <div className="p-6 space-y-4 bg-white dark:bg-slate-900 flex flex-col justify-between">
                                         <div>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">Diagnóstico principal</p>
                                             <div className="flex items-center gap-2">
@@ -299,11 +359,25 @@ export default function Demo() {
                                             <p className="text-3xl font-semibold text-cyan-600 dark:text-cyan-300">
                                                 {analysisComplete ? `${(activeCase.confidence * 100).toFixed(1)}%` : '---'}
                                             </p>
-                                            <p className="text-sm text-slate-600 dark:text-slate-400">
-                                                {analysisComplete ? activeCase.summary : 'Ejecuta la demo para ver el resultado completo.'}
+                                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-2 min-h-[40px]">
+                                                {analysisComplete ? activeCase.summary : 'Ejecuta la demo interactiva para ver el informe médico topográfico.'}
                                             </p>
                                         </div>
                                         <div>
+                                            {/* Interactive Heatmap Toggle */}
+                                            {analysisComplete ? (
+                                                <button
+                                                    onClick={() => setShowHeatmap(!showHeatmap)}
+                                                    className="w-full mb-4 group relative inline-flex items-center justify-center gap-2 px-6 py-2.5 text-sm font-semibold text-white transition-all bg-gradient-to-r from-cyan-600 to-blue-600 rounded-xl hover:from-cyan-500 hover:to-blue-500 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 overflow-hidden shadow-md"
+                                                >
+                                                    <div className="absolute inset-0 w-full h-full -mt-1 rounded-lg opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></div>
+                                                    <span className="material-symbols-outlined relative z-10">{showHeatmap ? 'visibility_off' : 'center_focus_strong'}</span>
+                                                    <span className="relative z-10">{showHeatmap ? 'Ocultar Inteligencia Artificial' : 'Ver Mapa de Atención (Grad-CAM)'}</span>
+                                                </button>
+                                            ) : (
+                                                 <div className="w-full mb-4 h-10"></div>
+                                            )}
+
                                             <p className="text-sm text-slate-500 dark:text-slate-400 mb-3">Probabilidades de la IA</p>
                                             <div className="space-y-2">
                                                 {activeCase.results.map((result, idx) => (
@@ -377,8 +451,8 @@ export default function Demo() {
                         <div>
                             <p className="text-sm uppercase tracking-[0.3em] text-white/70 mb-3">LISTO PARA PROBARLO</p>
                             <h2 className="text-3xl font-bold mb-3 text-white">Crea tu cuenta y lanza tu primer análisis real hoy.</h2>
-                            <p className="text-white/80">
-                                Incluimos 50 estudios gratuitos para demos, dashboard con historial, PDF automatizados y control de roles.
+                            <p className="text-white/80 max-w-2xl">
+                                Incluye integración total con nuestro motor DenseNet Pro, un dashboard avanzado con historial interactivo, autogeneración de reportes PDF y control administrativo de roles.
                             </p>
                         </div>
                         <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
@@ -386,7 +460,7 @@ export default function Demo() {
                                 to="/signup"
                                 className="bg-white text-cyan-700 font-semibold px-6 py-3 rounded-2xl text-center shadow-lg hover:-translate-y-0.5 transition"
                             >
-                                Crear cuenta ahora
+                                Crear cuenta gratuita
                             </Link>
                             <Link
                                 to="/login"

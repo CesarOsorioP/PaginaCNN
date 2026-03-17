@@ -50,7 +50,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:text-cyan-700 dark:hover:text-cyan-300 transition-colors cursor-pointer"
           >
             <span className="material-symbols-outlined text-2xl">medical_services</span>
-            <span className="font-bold text-lg">NombrePagina</span>
+            <span className="font-bold text-lg">MedScan AI</span>
           </Link>
         </div>
 

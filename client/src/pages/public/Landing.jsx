@@ -22,15 +22,29 @@ export default function Landing() {
     const duplicatedTechs = [...techs, ...techs, ...techs, ...techs];
 
     const analyzedClasses = [
-        { name: 'Neumonía', description: 'Infección pulmonar inflamatoria', color: 'from-red-500/20 to-red-900/40' },
-        { name: 'COVID-19', description: 'Patrones virales característicos', color: 'from-orange-500/20 to-orange-900/40' },
-        { name: 'Tuberculosis', description: 'Infección bacteriana crónica', color: 'from-amber-500/20 to-amber-900/40' },
-        { name: 'Nódulo', description: 'Crecimiento anormal de tejido', color: 'from-blue-500/20 to-blue-900/40' },
-        { name: 'Masa', description: 'Lesión mayor a 3 cm', color: 'from-indigo-500/20 to-indigo-900/40' },
-        { name: 'Atelectasia', description: 'Colapso parcial del pulmón', color: 'from-purple-500/20 to-purple-900/40' },
-        { name: 'Edema', description: 'Acumulación de líquido', color: 'from-cyan-500/20 to-cyan-900/40' },
-        { name: 'Normal', description: 'Sin hallazgos patológicos', color: 'from-green-500/20 to-green-900/40' }
+        { name: 'Neumonía', description: 'Infección pulmonar inflamatoria', colorClass: 'blue' },
+        { name: 'COVID-19', description: 'Patrones virales característicos', colorClass: 'rose' },
+        { name: 'Tuberculosis', description: 'Infección bacteriana crónica', colorClass: 'amber' },
+        { name: 'Nódulo', description: 'Crecimiento anormal de tejido', colorClass: 'emerald' },
+        { name: 'Masa', description: 'Lesión mayor a 3 cm', colorClass: 'purple' },
+        { name: 'Atelectasia', description: 'Colapso parcial del pulmón', colorClass: 'cyan' },
+        { name: 'Edema', description: 'Acumulación de líquido', colorClass: 'indigo' },
+        { name: 'Normal', description: 'Sin hallazgos patológicos', colorClass: 'green' }
     ];
+
+    const getColorClasses = (color) => {
+        const classes = {
+            blue: { bg: 'bg-blue-50 dark:bg-blue-500/10', border: 'hover:border-blue-300 dark:hover:border-blue-700', shadow: 'hover:shadow-blue-500/20', icon: 'text-blue-600 dark:text-blue-400', gradient: 'from-blue-500/5 dark:from-blue-500/10' },
+            rose: { bg: 'bg-rose-50 dark:bg-rose-500/10', border: 'hover:border-rose-300 dark:hover:border-rose-700', shadow: 'hover:shadow-rose-500/20', icon: 'text-rose-600 dark:text-rose-400', gradient: 'from-rose-500/5 dark:from-rose-500/10' },
+            amber: { bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'hover:border-amber-300 dark:hover:border-amber-700', shadow: 'hover:shadow-amber-500/20', icon: 'text-amber-600 dark:text-amber-400', gradient: 'from-amber-500/5 dark:from-amber-500/10' },
+            emerald: { bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'hover:border-emerald-300 dark:hover:border-emerald-700', shadow: 'hover:shadow-emerald-500/20', icon: 'text-emerald-600 dark:text-emerald-400', gradient: 'from-emerald-500/5 dark:from-emerald-500/10' },
+            purple: { bg: 'bg-purple-50 dark:bg-purple-500/10', border: 'hover:border-purple-300 dark:hover:border-purple-700', shadow: 'hover:shadow-purple-500/20', icon: 'text-purple-600 dark:text-purple-400', gradient: 'from-purple-500/5 dark:from-purple-500/10' },
+            cyan: { bg: 'bg-cyan-50 dark:bg-cyan-500/10', border: 'hover:border-cyan-300 dark:hover:border-cyan-700', shadow: 'hover:shadow-cyan-500/20', icon: 'text-cyan-600 dark:text-cyan-400', gradient: 'from-cyan-500/5 dark:from-cyan-500/10' },
+            indigo: { bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'hover:border-indigo-300 dark:hover:border-indigo-700', shadow: 'hover:shadow-indigo-500/20', icon: 'text-indigo-600 dark:text-indigo-400', gradient: 'from-indigo-500/5 dark:from-indigo-500/10' },
+            green: { bg: 'bg-green-50 dark:bg-green-500/10', border: 'hover:border-green-300 dark:hover:border-green-700', shadow: 'hover:shadow-green-500/20', icon: 'text-green-600 dark:text-green-400', gradient: 'from-green-500/5 dark:from-green-500/10' },
+        };
+        return classes[color];
+    };
 
     return (
         <div className="bg-slate-50 text-slate-800 dark:bg-slate-900 dark:text-slate-100 font-sans overflow-x-hidden min-h-screen flex flex-col">
@@ -83,7 +97,7 @@ export default function Landing() {
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <FadeInWhenVisible>
                         <div className="text-center mb-20">
-                            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Por qué elegir NombrePagina</h2>
+                            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Por qué elegir MedScan AI</h2>
                             <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto">
                                 Combinamos la experiencia médica con la potencia del aprendizaje profundo para ofrecer resultados en los que puedes confiar.
                             </p>
@@ -92,20 +106,28 @@ export default function Landing() {
 
                     <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
                         {[
-                            { icon: 'speed', title: 'Resultados Rápidos', desc: 'Análisis completo en menos de 30 segundos. Ahorra tiempo valioso en el triaje inicial.', delay: '0s' },
-                            { icon: 'security', title: 'Privacidad Total', desc: 'Los datos de los pacientes están encriptados de extremo a extremo.', delay: '0.2s' },
-                            { icon: 'psychology', title: 'Precisión IA', desc: 'Entrenada con millones de imágenes validadas por radiólogos expertos para alta sensibilidad.', delay: '0.4s' }
-                        ].map((feature, idx) => (
-                            <FadeInWhenVisible key={idx} delay={feature.delay} className="h-full">
-                                <div className="h-full p-8 bg-slate-50 rounded-2xl border border-slate-100 hover:shadow-xl hover:shadow-slate-200/50 transition-all duration-300 group dark:bg-slate-800 dark:border-slate-700 dark:hover:shadow-slate-900/50">
-                                    <div className="w-14 h-14 bg-white rounded-xl flex items-center justify-center shadow-sm mb-6 group-hover:scale-110 transition-transform duration-300 dark:bg-slate-700">
-                                        <span className="material-symbols-outlined text-primary-600 text-3xl dark:text-primary-400">{feature.icon}</span>
+                            { icon: 'speed', title: 'Resultados Rápidos', desc: 'Análisis completo en menos de 30 segundos. Ahorra tiempo valioso en el triaje inicial.', delay: '0s', colorClass: 'cyan' },
+                            { icon: 'security', title: 'Privacidad Total', desc: 'Los datos de los pacientes están encriptados de extremo a extremo.', delay: '0.2s', colorClass: 'blue' },
+                            { icon: 'psychology', title: 'Precisión IA', desc: 'Entrenada con miles de imágenes validadas por radiólogos expertos para alta sensibilidad.', delay: '0.4s', colorClass: 'indigo' }
+                        ].map((feature, idx) => {
+                            const styles = getColorClasses(feature.colorClass);
+                            return (
+                                <FadeInWhenVisible key={idx} delay={feature.delay} className="h-full">
+                                    <div className={`group h-full relative rounded-3xl border border-slate-200 dark:border-slate-800/80 p-8 bg-white dark:bg-slate-800 hover:-translate-y-2 hover:shadow-xl ${styles.shadow} ${styles.border} transition-all duration-300 overflow-hidden flex flex-col`}>
+                                        {/* Background hover gradient */}
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                                        
+                                        <div className="relative z-10 flex flex-col h-full">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${styles.bg} group-hover:scale-110 transition-transform duration-300 mb-6 shadow-sm`}>
+                                                <span className={`material-symbols-outlined text-3xl ${styles.icon}`}>{feature.icon}</span>
+                                            </div>
+                                            <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white group-hover:scale-105 transition-transform origin-left">{feature.title}</h3>
+                                            <p className="text-slate-600 leading-relaxed dark:text-slate-400">{feature.desc}</p>
+                                        </div>
                                     </div>
-                                    <h3 className="text-xl font-bold mb-3 text-slate-900 dark:text-white">{feature.title}</h3>
-                                    <p className="text-slate-600 leading-relaxed dark:text-slate-400">{feature.desc}</p>
-                                </div>
-                            </FadeInWhenVisible>
-                        ))}
+                                </FadeInWhenVisible>
+                            );
+                        })}
                     </div>
                 </div>
             </section>
@@ -123,18 +145,28 @@ export default function Landing() {
                         </div>
                     </FadeInWhenVisible>
 
-                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                        {analyzedClasses.map((item, idx) => (
-                            <FadeInWhenVisible key={item.name} delay={`${idx * 0.05}s`}>
-                                <div className={`rounded-2xl border border-slate-200 dark:border-slate-700 p-5 bg-gradient-to-br ${item.color} hover:border-cyan-400 transition-colors`}>
-                                    <div className="flex items-center justify-between mb-3">
-                                        <span className="text-slate-900 dark:text-white font-semibold">{item.name}</span>
-                                        <span className="material-symbols-outlined text-slate-600 dark:text-slate-200">radiology</span>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                        {analyzedClasses.map((item, idx) => {
+                            const styles = getColorClasses(item.colorClass);
+                            return (
+                                <FadeInWhenVisible key={item.name} delay={`${idx * 0.05}s`} className="h-full">
+                                    <div className={`group h-full relative rounded-2xl border border-slate-200 dark:border-slate-800/80 p-6 bg-white dark:bg-slate-800 hover:-translate-y-2 hover:shadow-xl ${styles.shadow} ${styles.border} transition-all duration-300 overflow-hidden flex flex-col`}>
+                                        {/* Background hover gradient */}
+                                        <div className={`absolute inset-0 bg-gradient-to-br ${styles.gradient} to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`}></div>
+                                        
+                                        <div className="relative z-10">
+                                            <div className="flex items-center justify-between mb-4">
+                                                <h3 className="text-xl font-bold text-slate-900 dark:text-white group-hover:scale-105 transition-transform origin-left">{item.name}</h3>
+                                                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${styles.bg} group-hover:scale-110 transition-transform duration-300`}>
+                                                    <span className={`material-symbols-outlined ${styles.icon}`}>radiology</span>
+                                                </div>
+                                            </div>
+                                            <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">{item.description}</p>
+                                        </div>
                                     </div>
-                                    <p className="text-slate-500 dark:text-slate-300 text-sm">{item.description}</p>
-                                </div>
-                            </FadeInWhenVisible>
-                        ))}
+                                </FadeInWhenVisible>
+                            );
+                        })}
                     </div>
                 </div>
             </section>

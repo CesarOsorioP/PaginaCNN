@@ -9,7 +9,7 @@ export default function Footer() {
                     <div>
                         <div className="flex items-center gap-2 text-primary-400 mb-4">
                             <span className="material-symbols-outlined text-2xl">medical_services</span>
-                            <span className="font-bold text-lg">NombrePagina</span>
+                            <span className="font-bold text-lg">MedScan AI</span>
                         </div>
                         <p className="text-sm text-slate-400">
                             Análisis de radiografías con inteligencia artificial.

@@ -25,6 +25,13 @@ export default function Signup() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        const passwordRegex = /^(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+            setError('La contraseña debe tener al menos 8 caracteres, una letra mayúscula y un número.');
+            return;
+        }
+
         setLoading(true);
         try {
             const username = `${formData.firstName} ${formData.lastName}`;

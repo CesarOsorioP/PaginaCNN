@@ -21,7 +21,7 @@ export default function Navbar() {
                 <div className="flex items-center justify-between py-4">
                     <Link to="/" className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 hover:opacity-80 transition-opacity">
                         <span className="material-symbols-outlined text-3xl">medical_services</span>
-                        <span className="font-bold text-xl truncate">NombrePagina</span>
+                        <span className="font-bold text-xl truncate">MedScan AI</span>
                     </Link>
 
                     {/* Desktop Menu */}

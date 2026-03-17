@@ -4,17 +4,10 @@ import api from '../../api/axios';
 import NavigationButtons from '../../components/NavigationButtons';
 
 const MODEL_INFO = {
-    efficientnet: {
-        name: 'EfficientNet-B4',
-        description: 'Modelo optimizado para velocidad y excelente balance precisión/recuperación.',
-        latency: '< 2s',
-        strengths: ['Alta precisión en casos comunes', 'Ideal para demos y triaje rápido'],
-        badge: 'Rápido'
-    },
     'densenet-pro': {
         name: 'DenseNet Pro',
         description: 'Modelo avanzado de mayor capacidad multietiqueta y entrenamiento extendido con Grad-CAM real.',
-        latency: '4-6s',
+        latency: '6-12s',
         strengths: ['Mayor robustez en casos complejos', 'Entrenado con dataset ampliado', 'Heatmap real (Grad-CAM)'],
         badge: 'Recomendado'
     }
@@ -113,38 +106,12 @@ export default function Upload() {
     const [analysisProgress, setAnalysisProgress] = useState(0);
     const [currentStep, setCurrentStep] = useState(0);
     const fileInputRef = useRef(null);
-    const [models, setModels] = useState([]);
-    const [modelsLoading, setModelsLoading] = useState(true);
-    const [modelError] = useState('');
-    const [selectedModel, setSelectedModel] = useState('densenet121-exai');
+    const [selectedModel] = useState('densenet-pro');
     const [alertInfo, setAlertInfo] = useState(null);
 
     const showAlert = (type, title, message, opts = {}) => {
         setAlertInfo({ type, title, message, ...opts });
     };
-
-    useEffect(() => {
-        let isMounted = true;
-
-        const fetchModels = async () => {
-            // Always use the local MODEL_INFO catalogue as source of truth for the UI
-            const fallback = Object.keys(MODEL_INFO).map((key) => ({
-                id: key,
-                name: MODEL_INFO[key].name
-            }));
-            if (isMounted) {
-                setModels(fallback);
-                setSelectedModel('densenet-pro');
-                setModelsLoading(false);
-            }
-        };
-
-        fetchModels();
-
-        return () => {
-            isMounted = false;
-        };
-    }, []);
 
     const handleFileSelect = (file) => {
         if (file && (file.type === 'image/jpeg' || file.type === 'image/png')) {
@@ -389,47 +356,25 @@ export default function Upload() {
                 Selecciona el modelo de IA que quieres usar y luego sube la imagen. Guardaremos el estudio automáticamente con toda la trazabilidad.
             </p>
 
-            {/* Model selector — compact dropdown */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-8 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm dark:shadow-none">
-                <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="material-symbols-outlined text-cyan-600 dark:text-cyan-400">neurology</span>
-                    <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Motor de diagnóstico:</span>
+            {/* Active Model Info */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 p-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-sm dark:shadow-none">
+                <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center text-violet-600 dark:text-violet-400 flex-shrink-0">
+                        <span className="material-symbols-outlined">neurology</span>
+                    </div>
+                    <div>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-0.5">Motor de diagnóstico activo</p>
+                        <p className="text-base font-bold text-slate-900 dark:text-white leading-none">{MODEL_INFO[selectedModel].name}</p>
+                    </div>
                 </div>
 
-                {modelError && (
-                    <span className="text-xs text-yellow-700 dark:text-yellow-300">{modelError}</span>
-                )}
-
-                <div className="relative flex-1 sm:max-w-xs">
-                    <select
-                        id="model-select"
-                        value={selectedModel}
-                        onChange={(e) => setSelectedModel(e.target.value)}
-                        disabled={modelsLoading}
-                        className="w-full appearance-none bg-slate-50 dark:bg-slate-900 border border-slate-300 dark:border-slate-600 text-slate-900 dark:text-white text-sm rounded-lg px-4 py-2.5 pr-10 cursor-pointer focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-colors disabled:opacity-60"
-                    >
-                        {models.map((m) => (
-                            <option key={m.id} value={m.id}>
-                                {MODEL_INFO[m.id]?.name || m.name}
-                                {MODEL_INFO[m.id]?.badge ? ` — ${MODEL_INFO[m.id].badge}` : ''}
-                            </option>
-                        ))}
-                    </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-slate-400 text-base">expand_more</span>
-                </div>
-
-                {/* Info pill for selected model */}
                 {MODEL_INFO[selectedModel] && (
-                    <div className="flex flex-wrap gap-2">
-                        {MODEL_INFO[selectedModel].badge && (
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${selectedModel === 'densenet-pro'
-                                ? 'bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-700'
-                                : 'bg-cyan-100 dark:bg-cyan-900/40 text-cyan-800 dark:text-cyan-200 border border-cyan-200 dark:border-cyan-700'
-                                }`}>
-                                {MODEL_INFO[selectedModel].badge}
-                            </span>
-                        )}
-                        <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-xs px-2.5 py-1 rounded-full font-medium bg-violet-100 dark:bg-violet-900/40 text-violet-800 dark:text-violet-200 border border-violet-200 dark:border-violet-700 shadow-sm">
+                            {MODEL_INFO[selectedModel].badge}
+                        </span>
+                        <span className="text-xs px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-600 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">timer</span>
                             Latencia {MODEL_INFO[selectedModel].latency}
                         </span>
                     </div>
@@ -438,7 +383,7 @@ export default function Upload() {
 
             <div className="grid lg:grid-cols-3 gap-6">
                 {/* Upload Area */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 min-w-0">
                     <div className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-6 sm:p-8 shadow-sm dark:shadow-none">
                         {!selectedFile ? (
                             <div
@@ -467,35 +412,36 @@ export default function Upload() {
                             </div>
                         ) : (
                             <div className="space-y-4">
-                                <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-4">
-                                    <div className="flex items-center gap-4">
-                                        <img src={preview} alt="Preview" className="w-20 h-20 object-cover rounded" />
-                                        <div className="flex-1">
-                                            <p className="font-medium text-slate-900 dark:text-white">{selectedFile.name}</p>
+                                <div className="bg-slate-100 dark:bg-slate-700 rounded-lg p-4 overflow-hidden">
+                                    <div className="flex items-center gap-3 sm:gap-4 w-full">
+                                        <img src={preview} alt="Preview" className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded flex-shrink-0" />
+                                        <div className="flex-1 min-w-0 overflow-hidden">
+                                            <p className="font-medium text-slate-900 dark:text-white truncate" title={selectedFile.name}>{selectedFile.name}</p>
                                             <p className="text-sm text-slate-500 dark:text-slate-400">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                                         </div>
                                         <button
                                             onClick={() => { setSelectedFile(null); setPreview(null); }}
-                                            className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300"
+                                            className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 flex-shrink-0 p-2 sm:p-0"
+                                            title="Eliminar imagen"
                                         >
-                                            <span className="material-symbols-outlined">delete</span>
+                                            <span className="material-symbols-outlined text-2xl sm:text-base">delete</span>
                                         </button>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="mt-6 flex justify-end gap-3">
+                        <div className="mt-6 flex flex-col-reverse sm:flex-row justify-end gap-3">
                             <Link
                                 to="/dashboard"
-                                className="px-6 py-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                                className="w-full sm:w-auto px-6 py-2 text-center text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                             >
                                 Cancelar
                             </Link>
                             <button
                                 onClick={handleAnalyze}
                                 disabled={!selectedFile}
-                                className={`px-6 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 ${selectedFile
+                                className={`w-full sm:w-auto px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 ${selectedFile
                                     ? 'bg-cyan-500 hover:bg-cyan-600 text-white'
                                     : 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500 cursor-not-allowed'
                                     }`}

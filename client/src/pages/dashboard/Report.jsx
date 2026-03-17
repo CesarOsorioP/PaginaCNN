@@ -9,7 +9,7 @@ import autoTable from 'jspdf-autotable';
 const MODEL_METADATA = {
     efficientnet: {
         label: 'EfficientNet-B4',
-        description: 'Modelo balanceado entrenado con 50k radiografías validadas.',
+        description: 'Modelo balanceado entrenado con 15k radiografías validadas.',
         throughput: '1.8s en CPU',
         focus: 'Triaje rápido'
     },
@@ -103,7 +103,76 @@ export default function Report() {
         return `${baseUrl}${imageUrl.startsWith('/') ? imageUrl : '/' + imageUrl}`;
     };
 
-    const getDiagnosisInfo = (results) => {
+    const determineAffectedRegion = (grid, condition) => {
+        if (!grid || grid.length === 0 || condition?.toLowerCase().includes('normal')) {
+            return {
+                location: 'Sin anomalías',
+                phrase: 'Radiografía dentro de parámetros normales. No se detectaron anomalías significativas.'
+            };
+        }
+
+        // Buscar las celdas con mayor intensidad
+        const maxIntensity = Math.max(...grid.map(c => c.intensity));
+        if (maxIntensity < 0.15) {
+            return {
+                location: 'Indeterminada',
+                phrase: 'No se detectó una región de atención anómala clara.'
+            };
+        }
+
+        // Obtener celdas significativas (cerca del máximo)
+        const activeCells = grid.filter(c => c.intensity >= maxIntensity * 0.7);
+
+        // Promediar posiciones para obtener la zona central de atención
+        const avgRow = activeCells.reduce((sum, c) => sum + c.row, 0) / activeCells.length;
+        const avgCol = activeCells.reduce((sum, c) => sum + c.col, 0) / activeCells.length;
+
+        // Lógica de pulmones (la imagen en la web suele estar en espejo del paciente, 
+        // pero clásicamente la izq de la imagen es el pulmón derecho del paciente)
+        // Columnas 0-3 = Pulmón Derecho, 4-7 = Pulmón Izquierdo
+        // Filas: 0-2 = Superior, 3-4 = Medio, 5-7 = Inferior/Basal
+        let lung = avgCol < 4 ? 'pulmón derecho' : 'pulmón izquierdo';
+        let zone = '';
+
+        if (avgRow < 3) zone = 'lóbulo superior';
+        else if (avgRow < 5) zone = 'lóbulo medio';
+        else zone = 'lóbulo inferior';
+
+        // Casos que tradicionalmente bilatrales (COVID, mucho edema)
+        if (activeCells.length > 15 || (condition?.toLowerCase().includes('covid'))) {
+            lung = 'ambos pulmones';
+            zone = 'múltiples zonas';
+        }
+
+        const exactLocation = `${zone} del ${lung}`.replace(' del ambos pulmones', ' de ambos pulmones').replace('múltiples zonas de ambos pulmones', 'múltiples zonas pulmonares');
+
+        // Construir frase dinámica
+        let phrase = '';
+        const condLower = condition?.toLowerCase() || '';
+
+        if (condLower.includes('neumonía')) {
+            phrase = `Se observa opacidad focal en el ${exactLocation} sugestiva de consolidación neumónica.`;
+        } else if (condLower.includes('atelectasia')) {
+            phrase = `Signos de colapso pulmonar (atelectasia) detectados principalmente en el ${exactLocation}.`;
+        } else if (condLower.includes('masa')) {
+            phrase = `Se detecta engrosamiento o masa en el ${exactLocation}. Se recomienda evaluación adicional.`;
+        } else if (condLower.includes('nódulo')) {
+            phrase = `Posible imagen nodular localizada en el ${exactLocation}. Considerar seguimiento.`;
+        } else if (condLower.includes('edema')) {
+            phrase = `Patrón alveolar/intersticial prominente en ${exactLocation}, compatible con edema.`;
+        } else if (condLower.includes('tuberculosis')) {
+            phrase = `Patrón radiológico en ${exactLocation} sugestivo de infección tuberculosa.`;
+        } else {
+            phrase = `Anomalía detectada con mayor foco de atención de la IA en el ${exactLocation}.`;
+        }
+
+        return {
+            location: exactLocation.charAt(0).toUpperCase() + exactLocation.slice(1),
+            phrase
+        };
+    };
+
+    const getDiagnosisInfo = (results, gridDataCache) => {
         if (!results || results.length === 0) {
             return {
                 condition: 'Pendiente',
@@ -113,53 +182,14 @@ export default function Report() {
             };
         }
 
-        const topResult = results[0]; // Ya viene ordenado del backend
-
-        const conditionMap = {
-            'Neumonía': {
-                location: 'Lóbulo superior derecho',
-                description: 'Se observa opacidad focal en el lóbulo superior derecho sugestiva de consolidación neumónica.'
-            },
-            'Atelectasia': {
-                location: 'Región pulmonar',
-                description: 'Colapso parcial o completo del pulmón detectado.'
-            },
-            'Masa': {
-                location: 'Pulmón',
-                description: 'Masa pulmonar detectada. Se recomienda evaluación adicional.'
-            },
-            'Nódulo': {
-                location: 'Pulmón',
-                description: 'Nódulo pulmonar detectado. Considerar seguimiento radiológico.'
-            },
-            'Edema': {
-                location: 'Espacio pulmonar',
-                description: 'Edema pulmonar detectado. Requiere evaluación clínica inmediata.'
-            },
-            'Normal': {
-                location: 'Sin anomalías',
-                description: 'Radiografía dentro de parámetros normales. No se detectaron anomalías significativas.'
-            },
-            'COVID-19': {
-                location: 'Pulmón bilateral',
-                description: 'Patrón radiológico sugestivo de COVID-19. Se recomienda confirmación con prueba molecular.'
-            },
-            'Tuberculosis': {
-                location: 'Lóbulos superiores',
-                description: 'Patrón radiológico sugestivo de tuberculosis. Se requiere confirmación microbiológica.'
-            }
-        };
-
-        const conditionInfo = conditionMap[topResult.condition] || {
-            location: 'Pulmón',
-            description: 'Anomalía detectada en la radiografía.'
-        };
+        const topResult = results[0];
+        const regionInfo = determineAffectedRegion(gridDataCache, topResult.condition);
 
         return {
             condition: topResult.condition,
             probability: topResult.probability,
-            location: conditionInfo.location,
-            description: conditionInfo.description
+            location: regionInfo.location,
+            description: regionInfo.phrase
         };
     };
 
@@ -254,7 +284,7 @@ export default function Report() {
         );
     }
 
-    const diagnosisInfo = getDiagnosisInfo(study.results);
+    const diagnosisInfo = getDiagnosisInfo(study.results, gridData);
     const modelMeta = getModelMeta(study.modelType);
     const recommendations = getRecommendations(diagnosisInfo.condition);
     const hasAnomaly = diagnosisInfo.probability > 0.5 && !diagnosisInfo.condition.toLowerCase().includes('normal');
