@@ -35,3 +35,6 @@ Thumbs.db
 best_densenet121.pth
 densenet_efficientnet_8class_T4x2.pth
 densenet_multilabel_modelpro.pth
+
+#scripts
+convert.py
