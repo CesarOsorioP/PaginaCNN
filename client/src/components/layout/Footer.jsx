@@ -37,14 +37,14 @@ export default function Footer() {
                     <div>
                         <h3 className="font-bold mb-4">Contacto</h3>
                         <p className="text-sm text-slate-400">
-                            Email: info@example.ai<br />
-                            Tel: +1 (555) 123-4567
+                            Email: cesar.pareja@correounivalle.edu.co<br />
+                            Tel: +57 320 633 6153
                         </p>
                     </div>
                 </div>
 
                 <div className="mt-8 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
-                    © 2025 NombrePagina. Todos los derechos reservados.
+                    © 2025 MedScan AI. Todos los derechos reservados.
                 </div>
             </div>
         </footer>
