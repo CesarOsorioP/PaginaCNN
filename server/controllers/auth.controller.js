@@ -14,16 +14,17 @@ const generateToken = (id) => {
 // @access  Public
 exports.register = async (req, res) => {
     const { username, email, password } = req.body;
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : email;
 
     try {
         // Validar que el email tenga formato válido
-        if (!email || !email.includes('@')) {
+        if (!normalizedEmail || !normalizedEmail.includes('@')) {
             return res.status(400).json({ message: 'El formato del correo electrónico no es válido.' });
         }
 
         // Validación de dominios permitidos
         const allowedDomains = ['gmail.com', 'hotmail.com', 'outlook.com', 'live.com', 'yahoo.com', 'icloud.com'];
-        const emailParts = email.split('@');
+        const emailParts = normalizedEmail.split('@');
         
         if (emailParts.length !== 2) {
             return res.status(400).json({ message: 'El formato del correo electrónico no es válido.' });
@@ -38,7 +39,7 @@ exports.register = async (req, res) => {
             });
         }
 
-        const userExists = await User.findOne({ email });
+        const userExists = await User.findOne({ email: normalizedEmail });
 
         if (userExists) {
             return res.status(400).json({ message: 'User already exists' });
@@ -46,7 +47,7 @@ exports.register = async (req, res) => {
 
         const user = await User.create({
             username,
-            email,
+            email: normalizedEmail,
             password
         });
 
@@ -71,9 +72,10 @@ exports.register = async (req, res) => {
 // @access  Public
 exports.login = async (req, res) => {
     const { email, password } = req.body;
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : email;
 
     try {
-        const user = await User.findOne({ email });
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (user && (await user.matchPassword(password))) {
             if (!user.isActive) {
@@ -154,53 +156,49 @@ exports.updateProfile = async (req, res) => {
 // @access  Public
 exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
+    const normalizedEmail = email ? String(email).toLowerCase().trim() : email;
 
     try {
-        console.log('🔐 [forgotPassword] Solicitud de recuperación de contraseña recibida');
-        console.log('   - Email solicitado:', email);
-        console.log('   - FRONTEND_URL:', process.env.FRONTEND_URL || 'No configurado (usando localhost:3000)');
-        
-        const user = await User.findOne({ email });
+        console.log('🔐 [forgotPassword] Solicitud de recuperación de contraseña recibida:', normalizedEmail);
+
+        const user = await User.findOne({ email: normalizedEmail });
 
         if (!user) {
             console.log('⚠️ [forgotPassword] Usuario no encontrado con email:', email);
             return res.status(200).json({ message: 'Si el correo existe, enviaremos instrucciones para restablecer la contraseña.' });
         }
 
-        console.log('✅ [forgotPassword] Usuario encontrado:');
-        console.log('   - ID:', user._id);
-        console.log('   - Username:', user.username);
-        console.log('   - Email:', user.email);
-        
-        console.log('🔐 [forgotPassword] Generando token de reset...');
+        console.log('✅ [forgotPassword] Usuario encontrado:', user.email);
+
         const resetToken = user.generatePasswordResetToken();
         await user.save({ validateBeforeSave: false });
-        console.log('✅ [forgotPassword] Token de reset generado y guardado en la base de datos');
 
         const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
         const resetUrl = `${frontendUrl}/reset-password/${resetToken}`;
-        console.log('🔗 [forgotPassword] URL de reset generada:', resetUrl);
 
         const message = `
-            <p>Hola ${user.firstName || user.username},</p>
-            <p>Recibimos una solicitud para restablecer tu contraseña. Haz clic en el siguiente botón para continuar:</p>
-            <p style="text-align:center;margin:24px 0;">
-                <a href="${resetUrl}" style="background-color:#0284c7;color:#ffffff;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">
-                    Restablecer contraseña
-                </a>
-            </p>
-            <p>Si no solicitaste este cambio, puedes ignorar este correo. El enlace expirará en 10 minutos.</p>
-            <p>— Equipo MedScan AI</p>
+            <div style="font-family:Arial,Helvetica,sans-serif;background-color:#f6f8fb;padding:24px;">
+                <div style="max-width:680px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e6eef8;">
+                    <div style="background:#0b61a4;padding:20px 24px;color:#ffffff;font-size:18px;font-weight:700;text-align:left;">MedScan AI — Restablecer contraseña</div>
+                    <div style="padding:24px;color:#0f1724;">
+                        <p style="margin:0 0 12px 0;font-size:16px;">Hola ${user.firstName || user.username},</p>
+                        <p style="margin:0 0 18px 0;color:#334155;">Hemos recibido una solicitud para restablecer la contraseña de tu cuenta. Haz clic en el botón azul para crear una nueva contraseña. Este enlace expirará en 10 minutos.</p>
+                        <p style="text-align:center;margin:28px 0;">
+                            <a href="${resetUrl}" style="background-color:#0b61a4;color:#ffffff;padding:12px 22px;border-radius:8px;text-decoration:none;font-weight:600;display:inline-block;">Restablecer contraseña</a>
+                        </p>
+                        <p style="margin:0;color:#475569;font-size:13px;">Si no solicitaste este cambio, puedes ignorar este correo y no se realizará ninguna acción.</p>
+                    </div>
+                    <div style="background:#f1f5f9;padding:14px 24px;color:#334155;font-size:13px;">© MedScan AI</div>
+                </div>
+            </div>
         `;
 
-        console.log('📧 [forgotPassword] Preparando envío de email...');
         await sendEmail({
             to: user.email,
             subject: 'Restablece tu contraseña - MedScan AI',
             html: message,
             text: `Visita este enlace para restablecer tu contraseña: ${resetUrl}`
         });
-        console.log('✅ [forgotPassword] Email enviado exitosamente');
 
         res.json({ message: 'Enviamos un correo con instrucciones para restablecer tu contraseña.' });
     } catch (error) {

@@ -8,6 +8,17 @@ const fs = require('fs');
 // Load env vars
 dotenv.config();
 
+// Workaround: force Node's DNS resolver to use a public DNS server for SRV lookups
+// This can fix `querySrv ECONNREFUSED` errors on some networks where the default
+// resolver is blocked or misconfigured.
+const dns = require('dns');
+try {
+    dns.setServers(['8.8.8.8']);
+    console.log('DNS servers set to:', dns.getServers());
+} catch (err) {
+    console.warn('Could not set DNS servers:', err.message);
+}
+
 // Connect to database
 connectDB();
 

@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const isDebug = process.env.EMAIL_DEBUG === 'true' || process.env.NODE_ENV === 'development';
 
 const getTransportConfig = () => {
     const emailUser = process.env.EMAIL_USER || process.env.EMAIL_USERNAME;
@@ -37,17 +38,21 @@ const getTransportConfig = () => {
 const sendEmail = async ({ to, subject, html, text }) => {
     try {
         console.log('📧 [sendEmail] Intentando enviar email a:', to);
-        console.log('📧 [sendEmail] Configuración de transporte:', process.env.EMAIL_TRANSPORT || 'SMTP');
-        console.log('📧 [sendEmail] EMAIL_USER configurado:', !!process.env.EMAIL_USER || !!process.env.EMAIL_USERNAME);
-        console.log('📧 [sendEmail] EMAIL_PASS configurado:', !!process.env.EMAIL_PASS || !!process.env.EMAIL_PASSWORD);
+        if (isDebug) {
+            console.log('📧 [sendEmail] Configuración de transporte:', process.env.EMAIL_TRANSPORT || 'SMTP');
+            console.log('📧 [sendEmail] EMAIL_USER configurado:', !!process.env.EMAIL_USER || !!process.env.EMAIL_USERNAME);
+            console.log('📧 [sendEmail] EMAIL_PASS configurado:', !!process.env.EMAIL_PASS || !!process.env.EMAIL_PASSWORD);
+        }
         
         const transportConfig = getTransportConfig();
-        console.log('📧 [sendEmail] Configuración de transporte creada:', {
-            service: transportConfig.service || 'SMTP',
-            host: transportConfig.host || 'Gmail',
-            port: transportConfig.port,
-            secure: transportConfig.secure
-        });
+        if (isDebug) {
+            console.log('📧 [sendEmail] Configuración de transporte creada:', {
+                service: transportConfig.service || 'SMTP',
+                host: transportConfig.host || 'Gmail',
+                port: transportConfig.port,
+                secure: transportConfig.secure
+            });
+        }
         
         // Configuración optimizada para entornos cloud como Render
         const transporterConfig = {
@@ -75,12 +80,14 @@ const sendEmail = async ({ to, subject, html, text }) => {
         const transporter = nodemailer.createTransport(transporterConfig);
         
         // Verificar la conexión antes de enviar (con timeout más largo)
-        console.log('📧 [sendEmail] Verificando conexión con el servidor de email...');
-        console.log('📧 [sendEmail] Timeouts configurados:', {
-            connection: transporterConfig.connectionTimeout,
-            greeting: transporterConfig.greetingTimeout,
-            socket: transporterConfig.socketTimeout
-        });
+        if (isDebug) {
+            console.log('📧 [sendEmail] Verificando conexión con el servidor de email...');
+            console.log('📧 [sendEmail] Timeouts configurados:', {
+                connection: transporterConfig.connectionTimeout,
+                greeting: transporterConfig.greetingTimeout,
+                socket: transporterConfig.socketTimeout
+            });
+        }
         
         // Intentar verificar con un timeout personalizado
         const verifyPromise = transporter.verify();
@@ -89,10 +96,10 @@ const sendEmail = async ({ to, subject, html, text }) => {
         );
         
         await Promise.race([verifyPromise, timeoutPromise]);
-        console.log('✅ [sendEmail] Conexión con el servidor de email verificada exitosamente');
+        if (isDebug) console.log('✅ [sendEmail] Conexión con el servidor de email verificada exitosamente');
 
         const fromEmail = process.env.EMAIL_FROM || process.env.FROM_EMAIL || `"MedScan AI" <${process.env.EMAIL_USER || process.env.EMAIL_USERNAME}>`;
-        console.log('📧 [sendEmail] Remitente configurado:', fromEmail);
+        if (isDebug) console.log('📧 [sendEmail] Remitente configurado:', fromEmail);
 
         const mailOptions = {
             from: fromEmail,
@@ -102,11 +109,13 @@ const sendEmail = async ({ to, subject, html, text }) => {
             html
         };
 
-        console.log('📧 [sendEmail] Enviando email...');
+        if (isDebug) console.log('📧 [sendEmail] Enviando email...');
         const info = await transporter.sendMail(mailOptions);
-        console.log('✅ [sendEmail] Email enviado exitosamente');
-        console.log('   - MessageId:', info.messageId);
-        console.log('   - Response:', info.response);
+        if (isDebug) {
+            console.log('✅ [sendEmail] Email enviado exitosamente');
+            console.log('   - MessageId:', info.messageId);
+            console.log('   - Response:', info.response);
+        }
         return info;
     } catch (error) {
         console.error('❌ [sendEmail] Error detallado al enviar email:');
