@@ -45,7 +45,7 @@ export default function Footer() {
                 </div>
 
                 <div className="mt-8 pt-8 border-t border-slate-800 text-center text-sm text-slate-500">
-                    © 2025 MedScan AI. Todos los derechos reservados.
+                    © 2025 - 2026 MedScan AI. Todos los derechos reservados.
                 </div>
             </div>
         </footer>
